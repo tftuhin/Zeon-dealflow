@@ -5,13 +5,25 @@ import {
   Activity, AlertCircle, AlertTriangle, ArrowLeft, ArrowRight, ArrowRightLeft, ArrowUpRight, Ban, BarChart3,
   Bell, BriefcaseBusiness, Building2, CalendarDays, Check, CheckCircle2,
   ChevronDown, ChevronRight, CircleDollarSign, CircleUserRound, ClipboardCheck,
-  ClipboardList, Clock3, Copy, Database, Download, ExternalLink, Eye, EyeOff,
-  FileCheck2, FileText, FileSpreadsheet, FileImage, Filter,
-  Handshake, Inbox, LayoutDashboard, Link2, ListChecks, LockKeyhole, Mail,
+  ClipboardList, Clock3, Columns, Columns3, Copy, Database, Download, ExternalLink, Eye, EyeOff,
+  FileCheck2, FileText, FileSpreadsheet, FileImage, Filter, GripVertical,
+  Handshake, Inbox, Kanban, LayoutDashboard, LayoutGrid, Link2, List, ListChecks, LockKeyhole, Mail,
   Menu, MessageSquareText, MoreHorizontal, Paperclip, Plus, RefreshCw, RotateCcw, Search, SearchCheck, Send,
   Settings, ShieldCheck, SlidersHorizontal, Sparkles, TrendingUp, UserPlus,
   UsersRound, X
 } from 'lucide-react';
+
+function parseRevenueValue(str) {
+  if (!str) return 0;
+  const num = parseFloat(String(str).replace(/[^0-9.]/g, ''));
+  return isNaN(num) ? 0 : num;
+}
+
+function sumVolume(items, key = 'revenue') {
+  const total = (items || []).reduce((sum, item) => sum + parseRevenueValue(item?.[key]), 0);
+  return total > 0 ? `$${total.toFixed(0)}M` : '—';
+}
+
 
 /* ==========================================================================
    SEED DATA & INITIAL STATES
@@ -467,11 +479,11 @@ const seedClosedDeals = [
 const navGroups = [
   { label:'WORKSPACE', items:[
     { id:'overview', label:'Overview', icon:LayoutDashboard },
+    { id:'ongoing', label:'Ongoing deals', icon:Handshake },
     { id:'leads', label:'Inbound leads', icon:Inbox },
     { id:'sellers', label:'Seller pipeline', icon:Building2 },
     { id:'investors', label:'Investor network', icon:UsersRound },
     { id:'matching', label:'Matchmaking', icon:ArrowRightLeft },
-    { id:'ongoing', label:'Ongoing deals', icon:Handshake },
     { id:'readiness', label:'Seller readiness', icon:ListChecks }
   ]},
   { label:'DEAL EXECUTION', items:[
@@ -482,17 +494,17 @@ const navGroups = [
 ];
 
 const viewInfo = {
-  overview: ['Overview', 'A clear view of active work, next steps, and items needing attention.'],
+  overview: ['Overview', 'Executive dealflow workspace, stage funnel, and active transactions.'],
   leads: ['Inbound leads', 'Review, research, and qualify incoming website and referral form submissions.'],
-  sellers: ['Seller pipeline', 'Track seller leads from first contact to an active process.'],
-  investors: ['Investor network', 'Keep investor preferences and relationship history in one place.'],
+  sellers: ['Seller pipeline', 'Interactive Attio-style Kanban pipeline and table views across all seller mandates.'],
+  investors: ['Investor network', 'Capital partners, target check sizes, and relationship stages.'],
   matching: ['Matchmaking', 'Find likely investor fits using seller needs and investor preferences.'],
   ongoing: ['Ongoing deals', 'Manage live transactions, diligence milestones, and deal progression across active mandates.'],
   readiness: ['Seller readiness', 'See what is ready, what is missing, and what could delay launch.'],
   blind: ['Blind outreach', 'Share an approved anonymous company profile and collect early interest.'],
   investments: ['Principal investments', 'Screen opportunities for Zeon’s own capital, separate from client advisory work.'],
   afterclose: ['After the deal', 'Track closeout, handoffs, and agreed follow-up across all closed transactions.'],
-  tasks: ['Tasks & follow-ups', 'Keep owners, due dates, and next actions visible.']
+  tasks: ['Tasks & follow-ups', 'Attio-style task board with assigned owners and due dates.']
 };
 
 /* ==========================================================================
@@ -1243,6 +1255,31 @@ export default function Home() {
     setDrawerSeller(null);
     setToast(`Seller moved to ${stage}`);
   };
+  const updateSellerStage = (id, stage) => {
+    setSellers(current => current.map(s => s.id === id ? { ...s, stage, updated:'Just now' } : s));
+    setToast(`Seller moved to ${stage}`);
+  };
+  const updateDealStage = (dealId, stage) => {
+    if (stage === 'Closed') {
+      const deal = ongoingDeals.find(d => d.id === dealId);
+      if (deal) closeOngoingDeal(deal);
+      return;
+    }
+    setOngoingDeals(prev => prev.map(d => d.id === dealId ? { ...d, stage } : d));
+    setToast(`Deal moved to ${stage}`);
+  };
+  const updateLeadStatus = (leadId, status) => {
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status } : l));
+    setToast(`Lead updated to ${status}`);
+  };
+  const updateTaskStatus = (taskId, status) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status, done: status === 'Done' } : t));
+    setToast(`Task moved to ${status}`);
+  };
+  const updateInvestorStatus = (investorId, status) => {
+    setInvestors(prev => prev.map(i => i.id === investorId ? { ...i, status } : i));
+    setToast(`Investor status updated to ${status}`);
+  };
   const toggleReady = (sellerId, index) => {
     setReadyState(current => {
       const list = current[sellerId] || [false,false,false,false,false];
@@ -1538,12 +1575,19 @@ export default function Home() {
     <aside className={`sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
       <div className="brand-row">
         <div className="brand-mark"><span className="brand-glyph">Z</span></div>
-        <div className="brand-name"><strong>Zeon DealBridge</strong><span>INVESTMENT BANKING WORKSPACE</span></div>
+        <div className="brand-name">
+          <strong>Zeon DealBridge</strong>
+          <span className="brand-sub">Investment Banking Workspace</span>
+        </div>
         <button className="mobile-close-btn" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation"><X size={17} /></button>
-        <button className="sidebar-collapse" aria-label="Collapse navigation"><ChevronDown size={15} /></button>
       </div>
       <div className="workspace-switcher">
-        <div className="workspace-avatar">ZD</div><div><strong>DealBridge Workspace</strong><span>Investment banking</span></div><ChevronDown size={15} />
+        <div className="workspace-avatar">ZD</div>
+        <div className="workspace-info">
+          <strong>DealBridge Workspace</strong>
+          <span>Investment banking</span>
+        </div>
+        <ChevronDown size={15} className="workspace-chevron" />
       </div>
       <div className="nav-scroll">
         {navGroups.map(group => <div className="nav-group" key={group.label}>
@@ -1618,7 +1662,21 @@ export default function Home() {
             </div>
           </div>
 
-          {view==='overview' && <Overview sellers={sellers} investors={investors} tasks={tasks} leads={leads} setView={setView} toggleTask={toggleTask} onOpenSeller={openSeller} onOpenLead={(l) => setLeadModal({ lead: l, mode: 'research' })} setModal={setModal} />}
+          {view==='overview' && <Overview
+            sellers={sellers}
+            investors={investors}
+            tasks={tasks}
+            leads={leads}
+            ongoingDeals={ongoingDeals}
+            setView={setView}
+            toggleTask={toggleTask}
+            onOpenSeller={openSeller}
+            onOpenInvestor={openInvestor}
+            openDetailProfile={openDetailProfile}
+            onOpenLead={(l) => setLeadModal({ lead: l, mode: 'research' })}
+            setModal={setModal}
+            onUpdateSellerStage={updateSellerStage}
+          />}
           {view==='leads' && <LeadsView
             leads={leads}
             onOpenLead={(l) => setLeadModal({ lead: l, mode: 'research' })}
@@ -1629,9 +1687,10 @@ export default function Home() {
             onNewLeadModal={() => setModal({ type:'inbound-lead' })}
             searchText={searchText}
             setSearchText={setSearchText}
+            onUpdateStatus={updateLeadStatus}
           />}
-          {view==='sellers' && <SellerPipeline sellers={filteredSellers} allSellers={sellers} searchText={searchText} setSearchText={setSearchText} stageFilter={stageFilter} setStageFilter={setStageFilter} sectorFilter={sectorFilter} setSectorFilter={setSectorFilter} onOpenSeller={openSeller} setModal={setModal} />}
-          {view==='investors' && <InvestorNetwork investors={investors} sellers={sellers} searchText={searchText} setSearchText={setSearchText} onOpenInvestor={openInvestor} setModal={setModal} />}
+          {view==='sellers' && <SellerPipeline sellers={filteredSellers} allSellers={sellers} searchText={searchText} setSearchText={setSearchText} stageFilter={stageFilter} setStageFilter={setStageFilter} sectorFilter={sectorFilter} setSectorFilter={setSectorFilter} onOpenSeller={openSeller} setModal={setModal} onUpdateStage={updateSellerStage} />}
+          {view==='investors' && <InvestorNetwork investors={investors} sellers={sellers} searchText={searchText} setSearchText={setSearchText} onOpenInvestor={openInvestor} setModal={setModal} onUpdateStatus={updateInvestorStatus} />}
           {view==='matching' && <MatchingView
             sellers={sellers}
             investors={investors}
@@ -1652,12 +1711,13 @@ export default function Home() {
             onOpenInitiate={() => setInitiateDealModal({ seller: sellers[0], investor: investors[0], dealSize: '', leadBanker: 'Maya Chen', stage: 'Outreach & NDA', notes: '' })}
             onViewAfterClose={() => setView('afterclose')}
             setToast={setToast}
+            onUpdateStage={updateDealStage}
           />}
           {view==='readiness' && <ReadinessView sellers={sellers} selectedSellerId={selectedSellerId} setSelectedSellerId={setSelectedSellerId} readyState={readyState} toggleReady={toggleReady} setToast={setToast} />}
           {view==='blind' && <BlindView sellers={sellers} selectedSellerId={selectedSellerId} setSelectedSellerId={setSelectedSellerId} terms={terms} blindApproved={blindApproved} setBlindApproved={setBlindApproved} outreachApproved={outreachApproved} setOutreachApproved={setOutreachApproved} blindSent={blindSent} handleSendBlind={handleSendBlind} ndaVerified={ndaVerified} setNdaVerified={setNdaVerified} identityApproved={identityApproved} setIdentityApproved={setIdentityApproved} identityDisclosureAuthorized={identityDisclosureAuthorized} setIdentityDisclosureAuthorized={setIdentityDisclosureAuthorized} setModal={setModal} setToast={setToast} />}
           {view==='investments' && <OwnInvestments setToast={setToast} />}
           {view==='afterclose' && <AfterClose closedDeals={closedDeals} setClosedDeals={setClosedDeals} sellers={sellers} tasks={tasks} toggleTask={toggleTask} setToast={setToast} />}
-          {view==='tasks' && <TasksView tasks={tasks} toggleTask={toggleTask} setModal={setModal} />}
+          {view==='tasks' && <TasksView tasks={tasks} toggleTask={toggleTask} setModal={setModal} onUpdateStatus={updateTaskStatus} />}
         </>}
       </div>
     </main>
@@ -1841,9 +1901,12 @@ function DisqualifyModal({ lead, onClose, onConfirm }) {
    INBOUND LEADS VIEW & RESEARCH COMPONENT
    ========================================================================== */
 
-function LeadsView({ leads, onOpenLead, onQualifySeller, onQualifyInvestor, onRequestDisqualify, onRestoreLead, onNewLeadModal, searchText, setSearchText }) {
+function LeadsView({ leads, onOpenLead, onQualifySeller, onQualifyInvestor, onRequestDisqualify, onRestoreLead, onNewLeadModal, searchText, setSearchText, onUpdateStatus }) {
+  const [viewMode, setViewMode] = useState('board');
   const [statusFilter, setStatusFilter] = useState('All');
   const [typeFilter, setTypeFilter] = useState('All');
+  const [draggedLeadId, setDraggedLeadId] = useState(null);
+  const [dragOverStage, setDragOverStage] = useState(null);
 
   const pendingCount = leads.filter(l => l.status === 'New Submission').length;
   const researchCount = leads.filter(l => l.status === 'Under Research').length;
@@ -1851,177 +1914,370 @@ function LeadsView({ leads, onOpenLead, onQualifySeller, onQualifyInvestor, onRe
   const disqualifiedCount = leads.filter(l => l.status === 'Disqualified').length;
   const activeCount = leads.filter(l => l.status !== 'Disqualified').length;
 
-  const filtered = leads.filter(l => {
+  const leadStages = [
+    { id: 'New Submission', label: 'New Submission', dot: 'slate' },
+    { id: 'Under Research', label: 'Under Research', dot: 'blue' },
+    { id: 'Qualified', label: 'Qualified', dot: 'emerald' },
+    { id: 'Disqualified', label: 'Disqualified', dot: 'rose' }
+  ];
+
+  const filtered = useMemo(() => leads.filter(l => {
     const q = searchText.toLowerCase();
     const matchSearch = !q || [l.company, l.name, l.email, l.sector, l.notes, l.sourceForm, l.disqualificationReason].filter(Boolean).join(' ').toLowerCase().includes(q);
-    const matchStatus = statusFilter === 'All'
-      ? l.status !== 'Disqualified'
-      : statusFilter === 'Qualified'
-        ? l.status.startsWith('Qualified')
-        : statusFilter === 'Disqualified'
-          ? l.status === 'Disqualified'
-          : l.status === statusFilter;
+    const matchStatus = viewMode === 'board'
+      ? true
+      : statusFilter === 'All'
+        ? l.status !== 'Disqualified'
+        : statusFilter === 'Qualified'
+          ? l.status.startsWith('Qualified')
+          : statusFilter === 'Disqualified'
+            ? l.status === 'Disqualified'
+            : l.status === statusFilter;
     const matchType = typeFilter === 'All' || l.suspectedType === typeFilter;
     return matchSearch && matchStatus && matchType;
-  });
+  }), [leads, searchText, statusFilter, typeFilter, viewMode]);
+
+  const handleDragStart = (e, leadId) => {
+    e.dataTransfer.setData('text/plain', leadId);
+    setDraggedLeadId(leadId);
+  };
+
+  const handleDragOver = (e, stageId) => {
+    e.preventDefault();
+    if (dragOverStage !== stageId) setDragOverStage(stageId);
+  };
+
+  const handleDragLeave = (e, stageId) => {
+    if (dragOverStage === stageId) setDragOverStage(null);
+  };
+
+  const handleDrop = (e, stageId) => {
+    e.preventDefault();
+    setDragOverStage(null);
+    const leadId = e.dataTransfer.getData('text/plain') || draggedLeadId;
+    if (leadId && onUpdateStatus) {
+      onUpdateStatus(leadId, stageId);
+    }
+    setDraggedLeadId(null);
+  };
 
   return <div className="view-stack">
-    <div className="stats-strip lead-stats-strip">
-      <div><span>Total form leads</span><strong>{leads.length}</strong></div>
-      <div><span>New submissions</span><strong>{pendingCount}</strong></div>
-      <div><span>Under research</span><strong>{researchCount}</strong></div>
-      <div><span>Qualified & converted</span><strong>{qualifiedCount}</strong></div>
-      <div className="stat-disqualified"><span>Disqualified leads</span><strong>{disqualifiedCount}</strong></div>
-    </div>
-
-    <section className="card full-card">
-      <div className="pipeline-toolbar">
-        <div className="segmented">
-          {[
-            { id: 'All', label: 'All Active', count: activeCount },
-            { id: 'New Submission', label: 'New Submission', count: pendingCount },
-            { id: 'Under Research', label: 'Under Research', count: researchCount },
-            { id: 'Qualified', label: 'Qualified', count: qualifiedCount },
-            { id: 'Disqualified', label: 'Disqualified', count: disqualifiedCount }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              className={`${statusFilter === tab.id ? 'selected' : ''} ${tab.id === 'Disqualified' ? 'tab-disqualified' : ''}`}
-              onClick={() => setStatusFilter(tab.id)}
-            >
-              {tab.label}
-              <span>{tab.count}</span>
-            </button>
-          ))}
+    {/* Attio View Controls Toolbar */}
+    <div className="attio-view-bar">
+      <div className="attio-view-bar-left">
+        <div className="attio-view-title">
+          <Inbox size={16} />
+          <span>Inbound Leads</span>
+          <span className="attio-view-count-badge">{filtered.length} submissions</span>
         </div>
-        <div className="table-tools">
-          <div className="table-search">
-            <Search size={15}/>
-            <input placeholder="Search form submissions, companies, sectors…" value={searchText} onChange={e=>setSearchText(e.target.value)} />
-          </div>
-          <CustomSelect
-            value={typeFilter}
-            onChange={setTypeFilter}
-            options={[
-              { value: 'All', label: 'All types' },
-              { value: 'Seller', label: 'Seller prospects' },
-              { value: 'Investor', label: 'Investor prospects' }
-            ]}
-            placeholder="All types"
-          />
-          <button className="button button-primary button-small" onClick={onNewLeadModal}><Plus size={15}/> Simulate submission</button>
+
+        <div className="attio-view-switcher">
+          <button
+            type="button"
+            className={`attio-view-btn ${viewMode === 'board' ? 'active' : ''}`}
+            onClick={() => setViewMode('board')}
+          >
+            <Kanban size={13} />
+            <span>Board</span>
+          </button>
+          <button
+            type="button"
+            className={`attio-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+            onClick={() => setViewMode('grid')}
+          >
+            <LayoutGrid size={13} />
+            <span>Grid</span>
+          </button>
         </div>
       </div>
 
-      {filtered.length ? (
-        <div className="lead-card-grid">
-          {filtered.map(lead => {
-            const isQualified = lead.status.startsWith('Qualified');
-            const isDisqualified = lead.status === 'Disqualified';
-            const isSellerProspect = lead.suspectedType === 'Seller';
-            const statusTone = isDisqualified
-              ? 'red'
-              : isQualified
-                ? 'green'
-                : lead.status === 'Under Research'
-                  ? 'blue'
-                  : 'amber';
-
-            return <div className={`lead-item-card ${isDisqualified ? 'is-disqualified' : ''}`} key={lead.id}>
-              <div className="lead-card-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <CompanyLogo name={lead.company} initials={lead.company.slice(0,2).toUpperCase()} size="md" />
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: 14.5, color: '#1f3448' }}>{lead.company}</h3>
-                    <span style={{ fontSize: 12, color: '#687b8d' }}>{lead.name} · {lead.email}</span>
-                  </div>
-                </div>
-                <Badge tone={statusTone}>{lead.status}</Badge>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '5px 0' }}>
-                <span className="lead-source-badge"><FileText size={12}/> {lead.sourceForm}</span>
-                <span style={{ fontSize: 11.5, color: '#7a8c9b' }}>• {lead.submittedAt}</span>
-              </div>
-
-              <div className="lead-submission-snippet">
-                "{lead.notes}"
-              </div>
-
-              {isDisqualified && lead.disqualificationReason && (
-                <div className="lead-disqualified-notice">
-                  <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                  <div>
-                    <strong>Disqualification reason:</strong> {lead.disqualificationReason}
-                  </div>
-                </div>
-              )}
-
-              <div className="lead-meta-row">
-                <div className="lead-meta-item">
-                  <span>Sector / Domain</span>
-                  <strong>{lead.sector || 'To investigate'}</strong>
-                </div>
-                <div className="lead-meta-item">
-                  <span>{isSellerProspect ? 'Reported Revenue' : 'Target Check Size'}</span>
-                  <strong>{isSellerProspect ? (lead.revenue || 'Not specified') : (lead.check || 'Not specified')}</strong>
-                </div>
-                <div className="lead-meta-item">
-                  <span>Classification</span>
-                  <strong>{lead.suspectedType} Prospect</strong>
-                </div>
-                <div className="lead-meta-item">
-                  <span>Location</span>
-                  <strong>{lead.location || lead.geography || 'United States'}</strong>
-                </div>
-              </div>
-
-              <div className="lead-card-footer">
-                <button className="button button-secondary button-small lead-action-full" onClick={()=>onOpenLead(lead)}>
-                  <SearchCheck size={14}/> Research & populate
-                </button>
-                <div className="lead-qualification-buttons">
-                  {!isQualified && !isDisqualified && (
-                    <>
-                      <button className="button button-quiet button-small lead-qual-btn" title="Qualify as Seller" onClick={()=>onQualifySeller(lead)}>
-                        <Building2 size={13}/> Seller
-                      </button>
-                      <button className="button button-quiet button-small lead-qual-btn" title="Qualify as Investor" onClick={()=>onQualifyInvestor(lead)}>
-                        <UsersRound size={13}/> Investor
-                      </button>
-                      <button
-                        className="button button-danger-quiet button-small lead-qual-btn lead-btn-disqualify"
-                        title="Disqualify this lead"
-                        onClick={()=>onRequestDisqualify(lead)}
-                      >
-                        <Ban size={13}/> Disqualify
-                      </button>
-                    </>
-                  )}
-                  {isQualified && (
-                    <span className="lead-converted-tag">
-                      <CheckCircle2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
-                      Converted
-                    </span>
-                  )}
-                  {isDisqualified && (
-                    <button
-                      className="button button-quiet button-small lead-restore-btn"
-                      title="Restore lead to Under Research"
-                      onClick={()=>onRestoreLead(lead)}
-                    >
-                      <RotateCcw size={13}/> Restore lead
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>;
-          })}
+      <div className="attio-view-bar-right">
+        <div className="attio-search-box">
+          <Search size={14} />
+          <input
+            placeholder="Search leads, companies, submitters..."
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+          />
+          <kbd>/</kbd>
         </div>
-      ) : (
-        <EmptyState title="No inbound form leads found" message={statusFilter === 'Disqualified' ? "No leads are currently disqualified." : "Try adjusting your status or search terms."} />
-      )}
-    </section>
+
+        <CustomSelect
+          value={typeFilter}
+          onChange={setTypeFilter}
+          options={[
+            { value: 'All', label: 'All types' },
+            { value: 'Seller', label: 'Seller prospects' },
+            { value: 'Investor', label: 'Investor prospects' }
+          ]}
+          placeholder="All types"
+        />
+
+        <button className="button button-primary button-small" onClick={onNewLeadModal}>
+          <Plus size={15} /> Simulate submission
+        </button>
+      </div>
+    </div>
+
+    {viewMode === 'board' ? (
+      <div className="attio-kanban-board">
+        {leadStages.map(st => {
+          const colLeads = filtered.filter(l => st.id === 'Qualified' ? l.status.startsWith('Qualified') : l.status === st.id);
+          const isOver = dragOverStage === st.id;
+
+          return (
+            <div
+              key={st.id}
+              className={`attio-kanban-column ${isOver ? 'drag-over' : ''}`}
+              onDragOver={e => handleDragOver(e, st.id)}
+              onDragLeave={e => handleDragLeave(e, st.id)}
+              onDrop={e => handleDrop(e, st.id)}
+            >
+              <div className="attio-column-header">
+                <div className="attio-column-title-wrap">
+                  <span className={`attio-stage-dot ${st.dot}`} />
+                  <span className="attio-column-name">{st.label}</span>
+                  <span className="attio-column-count">{colLeads.length}</span>
+                </div>
+                <button
+                  type="button"
+                  className="attio-column-add-btn"
+                  title="Simulate new submission"
+                  onClick={onNewLeadModal}
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
+
+              <div className="attio-cards-list">
+                {colLeads.map(lead => {
+                  const isQualified = lead.status.startsWith('Qualified');
+                  const isDisqualified = lead.status === 'Disqualified';
+                  const isSeller = lead.suspectedType === 'Seller';
+
+                  return (
+                    <div
+                      key={lead.id}
+                      className={`attio-card ${draggedLeadId === lead.id ? 'dragging' : ''}`}
+                      draggable={true}
+                      onDragStart={e => handleDragStart(e, lead.id)}
+                      onClick={() => onOpenLead(lead)}
+                    >
+                      <div className="attio-card-header">
+                        <div className="attio-card-title-group">
+                          <CompanyLogo name={lead.company} initials={lead.company.slice(0, 2).toUpperCase()} size="sm" />
+                          <div className="attio-card-title">{lead.company}</div>
+                        </div>
+                        <Badge tone={isDisqualified ? 'red' : isQualified ? 'green' : lead.status === 'Under Research' ? 'blue' : 'amber'}>
+                          {lead.status}
+                        </Badge>
+                      </div>
+
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>
+                        {lead.name} · {lead.email}
+                      </div>
+
+                      {lead.notes && <p className="attio-card-desc">"{lead.notes}"</p>}
+
+                      <div className="attio-card-pills">
+                        <span className={`attio-pill ${isSeller ? 'attio-pill-rev' : 'attio-pill-fit'}`}>
+                          {lead.suspectedType} Prospect
+                        </span>
+                        {lead.sector && (
+                          <span className="attio-pill attio-pill-sector">
+                            {lead.sector}
+                          </span>
+                        )}
+                        {(lead.revenue || lead.check) && (
+                          <span className="attio-pill">
+                            <CircleDollarSign size={11} /> {lead.revenue || lead.check}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="attio-lead-actions" onClick={e => e.stopPropagation()}>
+                        {!isQualified && !isDisqualified && (
+                          <>
+                            <button
+                              type="button"
+                              className="qualify-seller"
+                              title="Qualify as Seller"
+                              onClick={() => onQualifySeller(lead)}
+                            >
+                              <Building2 size={12} /> + Seller
+                            </button>
+                            <button
+                              type="button"
+                              title="Qualify as Investor"
+                              onClick={() => onQualifyInvestor(lead)}
+                            >
+                              <UsersRound size={12} /> + Investor
+                            </button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          title="Research lead"
+                          onClick={() => onOpenLead(lead)}
+                        >
+                          <SearchCheck size={12} /> Research
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {colLeads.length === 0 && (
+                  <div style={{ padding: '24px 12px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                    No leads in {st.label}
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="attio-column-bottom-add"
+                onClick={onNewLeadModal}
+              >
+                <Plus size={13} /> Add submission
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <section className="card full-card">
+        <div className="pipeline-toolbar">
+          <div className="segmented">
+            {[
+              { id: 'All', label: 'All Active', count: activeCount },
+              { id: 'New Submission', label: 'New Submission', count: pendingCount },
+              { id: 'Under Research', label: 'Under Research', count: researchCount },
+              { id: 'Qualified', label: 'Qualified', count: qualifiedCount },
+              { id: 'Disqualified', label: 'Disqualified', count: disqualifiedCount }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                className={`${statusFilter === tab.id ? 'selected' : ''} ${tab.id === 'Disqualified' ? 'tab-disqualified' : ''}`}
+                onClick={() => setStatusFilter(tab.id)}
+              >
+                {tab.label}
+                <span>{tab.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filtered.length ? (
+          <div className="lead-card-grid">
+            {filtered.map(lead => {
+              const isQualified = lead.status.startsWith('Qualified');
+              const isDisqualified = lead.status === 'Disqualified';
+              const isSellerProspect = lead.suspectedType === 'Seller';
+              const statusTone = isDisqualified
+                ? 'red'
+                : isQualified
+                  ? 'green'
+                  : lead.status === 'Under Research'
+                    ? 'blue'
+                    : 'amber';
+
+              return <div className={`lead-item-card ${isDisqualified ? 'is-disqualified' : ''}`} key={lead.id}>
+                <div className="lead-card-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <CompanyLogo name={lead.company} initials={lead.company.slice(0,2).toUpperCase()} size="md" />
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: 14.5, color: '#1f3448' }}>{lead.company}</h3>
+                      <span style={{ fontSize: 12, color: '#687b8d' }}>{lead.name} · {lead.email}</span>
+                    </div>
+                  </div>
+                  <Badge tone={statusTone}>{lead.status}</Badge>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '5px 0' }}>
+                  <span className="lead-source-badge"><FileText size={12}/> {lead.sourceForm}</span>
+                  <span style={{ fontSize: 11.5, color: '#7a8c9b' }}>• {lead.submittedAt}</span>
+                </div>
+
+                <div className="lead-submission-snippet">
+                  "{lead.notes}"
+                </div>
+
+                {isDisqualified && lead.disqualificationReason && (
+                  <div className="lead-disqualified-notice">
+                    <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <div>
+                      <strong>Disqualification reason:</strong> {lead.disqualificationReason}
+                    </div>
+                  </div>
+                )}
+
+                <div className="lead-meta-row">
+                  <div className="lead-meta-item">
+                    <span>Sector / Domain</span>
+                    <strong>{lead.sector || 'To investigate'}</strong>
+                  </div>
+                  <div className="lead-meta-item">
+                    <span>{isSellerProspect ? 'Reported Revenue' : 'Target Check Size'}</span>
+                    <strong>{isSellerProspect ? (lead.revenue || 'Not specified') : (lead.check || 'Not specified')}</strong>
+                  </div>
+                  <div className="lead-meta-item">
+                    <span>Classification</span>
+                    <strong>{lead.suspectedType} Prospect</strong>
+                  </div>
+                  <div className="lead-meta-item">
+                    <span>Location</span>
+                    <strong>{lead.location || lead.geography || 'United States'}</strong>
+                  </div>
+                </div>
+
+                <div className="lead-card-footer">
+                  <button className="button button-secondary button-small lead-action-full" onClick={()=>onOpenLead(lead)}>
+                    <SearchCheck size={14}/> Research & populate
+                  </button>
+                  <div className="lead-qualification-buttons">
+                    {!isQualified && !isDisqualified && (
+                      <>
+                        <button className="button button-quiet button-small lead-qual-btn" title="Qualify as Seller" onClick={()=>onQualifySeller(lead)}>
+                          <Building2 size={13}/> Seller
+                        </button>
+                        <button className="button button-quiet button-small lead-qual-btn" title="Qualify as Investor" onClick={()=>onQualifyInvestor(lead)}>
+                          <UsersRound size={13}/> Investor
+                        </button>
+                        <button
+                          className="button button-danger-quiet button-small lead-qual-btn lead-btn-disqualify"
+                          title="Disqualify this lead"
+                          onClick={()=>onRequestDisqualify(lead)}
+                        >
+                          <Ban size={13}/> Disqualify
+                        </button>
+                      </>
+                    )}
+                    {isQualified && (
+                      <span className="lead-converted-tag">
+                        <CheckCircle2 size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+                        Converted
+                      </span>
+                    )}
+                    {isDisqualified && (
+                      <button
+                        className="button button-quiet button-small lead-restore-btn"
+                        title="Restore lead to Under Research"
+                        onClick={()=>onRestoreLead(lead)}
+                      >
+                        <RotateCcw size={13}/> Restore lead
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>;
+            })}
+          </div>
+        ) : (
+          <EmptyState title="No inbound form leads found" message={statusFilter === 'Disqualified' ? "No leads are currently disqualified." : "Try adjusting your status or search terms."} />
+        )}
+      </section>
+    )}
   </div>;
 }
 
@@ -2868,142 +3124,1039 @@ function DetailProfilePage({
    OTHER VIEWS (OVERVIEW, PIPELINE, INVESTORS, MATCHING, ETC.)
    ========================================================================== */
 
-function Overview({ sellers, investors, tasks, leads, setView, toggleTask, onOpenSeller, onOpenLead, setModal }) {
-  const activeMandates = sellers.filter(s=>['Preparing','In Market'].includes(s.stage)).length;
-  const dueTasks = tasks.filter(t=>!t.done);
-  const pendingLeads = leads.filter(l=>!l.status.startsWith('Qualified') && l.status !== 'Disqualified' && l.status !== 'Archived').length;
+function Overview({
+  sellers,
+  investors,
+  tasks,
+  leads,
+  ongoingDeals = [],
+  setView,
+  toggleTask,
+  onOpenSeller,
+  onOpenInvestor,
+  openDetailProfile,
+  onOpenLead,
+  setModal,
+  onUpdateSellerStage
+}) {
+  const activeMandates = sellers.filter(s => ['Preparing', 'In Market'].includes(s.stage)).length;
+  const dueTasks = tasks.filter(t => !t.done);
+  const pendingLeads = leads.filter(l => !l.status.startsWith('Qualified') && l.status !== 'Disqualified' && l.status !== 'Archived').length;
 
-  return <div className="view-stack">
-    <div className="metrics-grid">
-      <MetricCard label="Active mandates" value={activeMandates} note="In preparation/market" icon={BriefcaseBusiness} tone="teal" />
-      <MetricCard label="Inbound form leads" value={pendingLeads} note="Awaiting qualification" icon={Inbox} tone="purple" />
-      <MetricCard label="Investor profiles" value={investors.length} note="Active capital network" icon={Handshake} tone="blue" />
-      <MetricCard label="Open tasks" value={dueTasks.length} note="Next actions due" icon={Clock3} tone="amber" />
-    </div>
+  // Investment Banking Portfolio Economics
+  const totalPipelineEV = sellers.reduce((sum, s) => sum + parseRevenueValue(s.revenue), 0);
+  const estSuccessFees = (totalPipelineEV * 0.028).toFixed(1); // illustrative 2.8% fee run-rate
 
-    <div className="overview-grid">
-      <section className="card pipeline-card">
-        <div className="card-heading">
-          <div><h3>Deal flow pipeline</h3><p>Active mandates by execution stage</p></div>
-          <button className="select-button">Current quarter <ChevronDown size={14}/></button>
-        </div>
-        <div className="pipeline-total">
-          <strong>{sellers.length}</strong><span>companies active</span>
-          <div className="pipeline-total-change"><Activity size={14}/> Live <span>workspace</span></div>
-        </div>
-        <div className="pipeline-bars">
-          {(() => {
-            const stages=[['New lead','New','bar-slate'],['Qualified','Qualified','bar-teal'],['Nurture','Nurture','bar-amber'],['Preparing','Preparing','bar-blue'],['In market','In Market','bar-purple']].map(([label,stage,color])=>({label,color,value:sellers.filter(s=>s.stage===stage).length}));
-            const maxCount=Math.max(1,...stages.map(stage=>stage.value));
-            return stages.map(({label,value,color})=><div className="pipeline-row" key={label}><span>{label}</span><div className="bar-track"><i className={color} style={{width:`${value ? Math.max(18,(value/maxCount)*100) : 0}%`}}/></div><strong>{value}</strong></div>);
-          })()}
-        </div>
-        <div className="card-footer-link"><button onClick={()=>setView('sellers')}>View seller pipeline <ArrowRight size={15}/></button><span>Updated just now</span></div>
-      </section>
+  const liveDealVolume = ongoingDeals.reduce((sum, d) => sum + parseRevenueValue(d.dealSize), 0);
+  const exclusivityDeals = ongoingDeals.filter(d => d.stage === 'LOI & Exclusivity').length;
 
-      <section className="card attention-card">
-        <div className="card-heading">
-          <div><h3>Needs attention</h3><p>Time-sensitive items</p></div>
-          <button className="dots-button"><MoreHorizontal size={18}/></button>
-        </div>
-        <div className="attention-list">
-          <div className="attention-item"><span className="attention-icon attention-red"><AlertTriangle size={16}/></span><div><strong>{pendingLeads} new form submissions pending</strong><span>Review inbound leads and qualify</span></div><button onClick={()=>setView('leads')}><ArrowRight size={16}/></button></div>
-          <div className="attention-item"><span className="attention-icon attention-amber"><FileCheck2 size={16}/></span><div><strong>2 preparation items open</strong><span>Northstar Care · confirm source documents</span></div><button onClick={()=>setView('readiness')}><ArrowRight size={16}/></button></div>
-          <div className="attention-item"><span className="attention-icon attention-blue"><EyeOff size={16}/></span><div><strong>Blind teaser awaits approval</strong><span>Atlas Market Data · no outreach sent</span></div><button onClick={()=>setView('blind')}><ArrowRight size={16}/></button></div>
-        </div>
-        <button className="text-button attention-all" onClick={()=>setView('tasks')}>View all tasks <ArrowRight size={14}/></button>
-      </section>
-    </div>
+  const funnelStages = [
+    { id: 'New', label: 'New Lead', dot: 'slate' },
+    { id: 'Qualified', label: 'Qualified', dot: 'blue' },
+    { id: 'Preparing', label: 'Preparing', dot: 'amber' },
+    { id: 'In Market', label: 'In Market', dot: 'emerald' },
+    { id: 'Nurture', label: 'Nurture', dot: 'purple' }
+  ];
 
-    <div className="lower-grid">
-      <section className="card table-card">
-        <div className="card-heading">
-          <div><h3>Recent Inbound Form Leads</h3><p>Latest website & referral submissions</p></div>
-          <button className="text-button" onClick={()=>setView('leads')}>View all <ArrowRight size={14}/></button>
-        </div>
-        <div className="mini-lead-list">
-          {leads.filter(l=>l.status!=='Disqualified').slice(0,4).map(l=>(
-            <button className="mini-lead" key={l.id} onClick={()=>onOpenLead(l)}>
-              <Avatar initials={l.company.slice(0,2).toUpperCase()} color={l.suspectedType==='Seller'?'mint':'lavender'}/>
-              <div className="mini-lead-main">
-                <strong>{l.company}</strong>
-                <span>{l.sector} · {l.submittedAt}</span>
+  // Helper for mandate advisory type
+  const getMandateType = (seller) => {
+    if (seller.name === 'Northstar Care') return 'Majority Sale (M&A)';
+    if (seller.name === 'CedarPay') return 'Growth Equity Round';
+    if (seller.name === 'Atlas Market Data') return 'Sell-Side M&A';
+    if (seller.name === 'BrightPath Learning') return 'Senior Credit Facility';
+    return 'Sell-Side Advisory';
+  };
+
+  // Helper for next key deliverable
+  const getDeliverable = (seller) => {
+    if (seller.name === 'Northstar Care') return 'QofE Audit Final Draft';
+    if (seller.name === 'CedarPay') return 'Customer Concentration Audit';
+    if (seller.name === 'Atlas Market Data') return 'Blind Teaser Sign-Off';
+    if (seller.name === 'BrightPath Learning') return 'Term Sheet Review';
+    return 'Financial Package Review';
+  };
+
+  return (
+    <div className="view-stack">
+      {/* 1. Interactive Attio Stage Funnel Bar */}
+      <div className="attio-funnel-strip">
+        {funnelStages.map(st => {
+          const stageSellers = sellers.filter(s => s.stage === st.id);
+          const vol = sumVolume(stageSellers);
+          return (
+            <div
+              key={st.id}
+              className="attio-funnel-step"
+              onClick={() => setView('sellers')}
+              style={{ cursor: 'pointer' }}
+              title={`View ${st.label} deals in Seller pipeline`}
+            >
+              <div className="attio-funnel-header">
+                <div className="attio-funnel-step-name">
+                  <span className={`attio-stage-dot ${st.dot}`} />
+                  <span>{st.label}</span>
+                </div>
+                <span className="attio-funnel-count">{stageSellers.length}</span>
               </div>
-              <Badge tone={l.status.startsWith('Qualified')?'green':l.status==='Under Research'?'blue':'amber'}>{l.status}</Badge>
-              <ChevronRight size={16}/>
-            </button>
-          ))}
+              <div className="attio-funnel-volume">{vol}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 2. Investment Banking Executive KPI Row */}
+      <div className="ib-metrics-grid">
+        <div className="ib-metric-card">
+          <div className="ib-metric-top">
+            <span className="ib-metric-label">Sell-Side Pipeline</span>
+            <span className="ib-metric-tag ib-tag-spruce">5 Mandates · 100% Retained</span>
+          </div>
+          <div className="ib-metric-main">
+            <span className="ib-metric-val">${totalPipelineEV}M</span>
+            <span className="ib-metric-trend"><TrendingUp size={13} /> +18% QoQ</span>
+          </div>
+          <div className="ib-metric-sub">Est. ${estSuccessFees}M Success Fee Run-Rate (2.8% avg)</div>
+          <div className="ib-metric-meta">
+            <span>Avg Mandate: <strong>$26.8M EV</strong></span>
+            <span>Preparing: <strong>$41M</strong></span>
+          </div>
+        </div>
+
+        <div className="ib-metric-card">
+          <div className="ib-metric-top">
+            <span className="ib-metric-label">Live Deal Volume</span>
+            <span className="ib-metric-tag ib-tag-blue">{ongoingDeals.length} Active Processes</span>
+          </div>
+          <div className="ib-metric-main">
+            <span className="ib-metric-val">${liveDealVolume}M</span>
+            <span className="ib-metric-trend"><Handshake size={13} /> {exclusivityDeals} in LOI</span>
+          </div>
+          <div className="ib-metric-sub">Active counterparty diligence & exclusivity</div>
+          <div className="ib-metric-meta">
+            <span>Largest: <strong>$70M (CedarPay)</strong></span>
+            <span>Credit: <strong>$25M</strong></span>
+          </div>
+        </div>
+
+        <div className="ib-metric-card">
+          <div className="ib-metric-top">
+            <span className="ib-metric-label">Buyer Universe</span>
+            <span className="ib-metric-tag ib-tag-purple">100% Sponsor Reach</span>
+          </div>
+          <div className="ib-metric-main">
+            <span className="ib-metric-val">{investors.length} Funds</span>
+            <span className="ib-metric-trend"><UsersRound size={13} /> 14 NDAs Active</span>
+          </div>
+          <div className="ib-metric-sub">8 CIMs Distributed · 4 IOIs · 2 LOIs</div>
+          <div className="ib-metric-meta">
+            <span>Private Equity: <strong>4</strong></span>
+            <span>Debt/Growth: <strong>2</strong></span>
+          </div>
+        </div>
+
+        <div className="ib-metric-card">
+          <div className="ib-metric-top">
+            <span className="ib-metric-label">Readiness & Velocity</span>
+            <span className="ib-metric-tag ib-tag-teal">0 Stalled Deals</span>
+          </div>
+          <div className="ib-metric-main">
+            <span className="ib-metric-val">88% Fit</span>
+            <span className="ib-metric-trend"><ShieldCheck size={13} /> 2 Launch-Ready</span>
+          </div>
+          <div className="ib-metric-sub">{pendingLeads} Pending Inbounds · Confirmatory DD: 2</div>
+          <div className="ib-metric-meta">
+            <span>QofE Audit: <strong>In Review</strong></span>
+            <span>Avg Cycle: <strong>42 Days</strong></span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Core Active Advisory Mandates Dealbook */}
+      <section className="dealbook-card">
+        <div className="dealbook-header">
+          <div>
+            <div className="dealbook-header-left">
+              <h3>Active Advisory Mandates (Dealbook)</h3>
+              <span className="dealbook-badge">{sellers.length} active mandates</span>
+            </div>
+            <p>Sell-side M&A, growth recapitalizations, and institutional capital advisory portfolio</p>
+          </div>
+          <button type="button" className="dealbook-action-btn primary" onClick={() => setView('sellers')}>
+            <Kanban size={13} /> Open Kanban Board
+          </button>
+        </div>
+
+        <div className="dealbook-table-wrap">
+          <table className="dealbook-table">
+            <thead>
+              <tr>
+                <th>Company & Sector</th>
+                <th>Mandate Type</th>
+                <th>Financial Profile</th>
+                <th>Process Stage</th>
+                <th>Advisory Lead</th>
+                <th>Top Sponsor Matches</th>
+                <th>Next Key Deliverable</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sellers.map(s => {
+                const stageDotColor = s.stage === 'In Market' ? 'emerald' : s.stage === 'Preparing' ? 'amber' : s.stage === 'Qualified' ? 'blue' : 'slate';
+                const matchedSponsors = investors
+                  .map(inv => ({ inv, score: getInvestorMatchScore(inv, s) }))
+                  .sort((a, b) => b.score - a.score)
+                  .slice(0, 2);
+
+                return (
+                  <tr key={s.id}>
+                    <td>
+                      <div className="dealbook-company-cell">
+                        <Avatar initials={s.name.slice(0, 2).toUpperCase()} color="mint" />
+                        <div>
+                          <div className="dealbook-company-name">{s.name}</div>
+                          <div className="dealbook-company-sector">{s.sector} · {s.location}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="dealbook-mandate-type">{getMandateType(s)}</div>
+                    </td>
+                    <td>
+                      <div className="dealbook-fin-cell">
+                        <div className="dealbook-fin-ev">{s.revenue} ARR</div>
+                        <div className="dealbook-fin-rev">{s.ebitda || 'Target $30M–$38M EV'}</div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="attio-pill">
+                        <span className={`attio-stage-dot ${stageDotColor}`} />
+                        {s.stage}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="attio-card-owner">
+                        <Avatar initials={s.owner ? s.owner.split(' ').map(n=>n[0]).join('') : 'MC'} size="xs" color="mint" />
+                        <span>{s.owner || 'Maya Chen'}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        {matchedSponsors.map(({ inv, score }) => (
+                          <span
+                            key={inv.id}
+                            className="attio-pill fit"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => onOpenInvestor ? onOpenInvestor(inv, s.id) : setView('investors')}
+                            title={`Click to view ${inv.name} match profile`}
+                          >
+                            ✦ {inv.name.split(' ')[0]} ({score}%)
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="dealbook-deliverable-pill">
+                        <Clock3 size={11} /> {getDeliverable(s)}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="dealbook-actions">
+                        <button
+                          type="button"
+                          className="dealbook-action-btn"
+                          onClick={() => onOpenSeller(s)}
+                          title="Open seller quick-view drawer"
+                        >
+                          Quick View
+                        </button>
+                        <button
+                          type="button"
+                          className="dealbook-action-btn primary"
+                          onClick={() => openDetailProfile ? openDetailProfile('seller', s) : onOpenSeller(s)}
+                          title="Open full detail profile page"
+                        >
+                          Detail Profile
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
 
-      <section className="card task-card">
-        <div className="card-heading">
-          <div><h3>Upcoming tasks</h3><p>Today and next 7 days</p></div>
-          <button className="text-button" onClick={()=>setView('tasks')}>See all <ArrowRight size={14}/></button>
-        </div>
-        <div className="task-list compact">
-          {tasks.filter(t=>!t.done).slice(0,3).map(task=><TaskItem key={task.id} task={task} toggleTask={toggleTask} />)}
-        </div>
-      </section>
+      {/* 4. Middle Two-Column Grid: Live Transactions War Room & Critical Path */}
+      <div className="ib-two-col">
+        {/* Left: Live Transactions War Room */}
+        <section className="dealbook-card">
+          <div className="dealbook-header">
+            <div>
+              <div className="dealbook-header-left">
+                <h3>Live Transactions & Diligence War Room</h3>
+                <span className="dealbook-badge">{ongoingDeals.length} active</span>
+              </div>
+              <p>Active counterparty processes in market, exclusivity, and closing</p>
+            </div>
+            <button type="button" className="dealbook-action-btn" onClick={() => setView('ongoing')}>
+              View Ongoing Board <ArrowRight size={13} />
+            </button>
+          </div>
+
+          <div className="live-process-list">
+            {ongoingDeals.map(d => {
+              const ms = Array.isArray(d.milestones) ? d.milestones : [];
+              const completedCount = ms.filter(m => m.done).length;
+              const totalCount = ms.length || 1;
+              const compPercent = Math.min(100, Math.round((completedCount / totalCount) * 100));
+              const stageColor = d.stage === 'LOI & Exclusivity' ? 'emerald' : d.stage === 'Confirmatory DD' ? 'amber' : 'blue';
+
+              return (
+                <div
+                  key={d.id}
+                  className="live-process-item"
+                  onClick={() => setView('ongoing')}
+                  title="Click to manage ongoing transaction"
+                >
+                  <div className="live-process-header">
+                    <div className="live-process-parties">
+                      <span>{d.sellerName}</span>
+                      <span className="vs">with</span>
+                      <span className="sponsor">{d.investorName}</span>
+                    </div>
+                    <span className="live-process-size-badge">{d.dealSize}</span>
+                  </div>
+
+                  <div className="live-process-meta">
+                    <span className="attio-pill">
+                      <span className={`attio-stage-dot ${stageColor}`} />
+                      {d.stage}
+                    </span>
+                    <span>
+                      Diligence Milestones: <strong>{completedCount}/{totalCount}</strong> ({compPercent}%)
+                    </span>
+                  </div>
+
+                  <div className="live-process-bar">
+                    <div className="live-process-fill" style={{ width: `${compPercent}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Right: Banker Action Center ("Needs Attention") */}
+        <section className="dealbook-card">
+          <div className="dealbook-header">
+            <div>
+              <div className="dealbook-header-left">
+                <h3>Critical Path & Banker Gateways</h3>
+                <span className="dealbook-badge">Needs Attention</span>
+              </div>
+              <p>High-stakes actions requiring partner sign-off before market launch</p>
+            </div>
+            <button type="button" className="dealbook-action-btn" onClick={() => setView('tasks')}>
+              View All Tasks <ArrowRight size={13} />
+            </button>
+          </div>
+
+          <div className="banker-action-list">
+            <div className="banker-action-item">
+              <span className="banker-action-indicator ind-red" />
+              <div className="banker-action-content">
+                <div className="banker-action-top">
+                  <span className="banker-action-tag tag-red">Confidential Outreach</span>
+                  <span className="attio-pill">Atlas Market Data</span>
+                </div>
+                <div className="banker-action-title">Blind teaser approved by founder</div>
+                <div className="banker-action-desc">
+                  Lead banker Maya Chen must approve the 12 sponsor recipients list before simulated blind distribution.
+                </div>
+                <button type="button" className="banker-action-btn" onClick={() => setView('blind')}>
+                  Review Outreach Gateways <ArrowRight size={12} />
+                </button>
+              </div>
+            </div>
+
+            <div className="banker-action-item">
+              <span className="banker-action-indicator ind-amber" />
+              <div className="banker-action-content">
+                <div className="banker-action-top">
+                  <span className="banker-action-tag tag-amber">Diligence & QofE</span>
+                  <span className="attio-pill">Northstar Care</span>
+                </div>
+                <div className="banker-action-title">Preliminary QofE draft delivered</div>
+                <div className="banker-action-desc">
+                  Confirm source revenue recognition schedules and customer concentration audit before LOI exclusivity expires.
+                </div>
+                <button type="button" className="banker-action-btn" onClick={() => setView('readiness')}>
+                  Open Readiness Checklist <ArrowRight size={12} />
+                </button>
+              </div>
+            </div>
+
+            <div className="banker-action-item">
+              <span className="banker-action-indicator ind-blue" />
+              <div className="banker-action-content">
+                <div className="banker-action-top">
+                  <span className="banker-action-tag tag-blue">Inbound Triage</span>
+                  <span className="attio-pill">3 Submissions</span>
+                </div>
+                <div className="banker-action-title">High-priority inbound founder submissions</div>
+                <div className="banker-action-desc">
+                  Clinical pathology diagnostics and logistics routing companies awaiting banker review and mandate qualification.
+                </div>
+                <button type="button" className="banker-action-btn" onClick={() => setView('leads')}>
+                  Triage Inbound Leads <ArrowRight size={12} />
+                </button>
+              </div>
+            </div>
+
+            <div className="banker-action-item">
+              <span className="banker-action-indicator ind-green" />
+              <div className="banker-action-content">
+                <div className="banker-action-top">
+                  <span className="banker-action-tag tag-green">Exclusivity Window</span>
+                  <span className="attio-pill">Harborline Capital</span>
+                </div>
+                <div className="banker-action-title">45-day exclusivity window: 14 days remaining</div>
+                <div className="banker-action-desc">
+                  Legal counsel finalizing TSA and definitive asset purchase agreement for Northstar Care majority recap.
+                </div>
+                <button type="button" className="banker-action-btn" onClick={() => setView('blind')}>
+                  View Non-Binding Terms <ArrowRight size={12} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* 5. Bottom Two-Column Grid: Sponsor Universe & Deal Team Tasks */}
+      <div className="ib-two-col">
+        {/* Left: Institutional Sponsor Universe */}
+        <section className="dealbook-card">
+          <div className="dealbook-header">
+            <div>
+              <div className="dealbook-header-left">
+                <h3>Institutional Sponsor Universe</h3>
+                <span className="dealbook-badge">{investors.length} active funds</span>
+              </div>
+              <p>Top private equity sponsors, growth equity, and private credit partners</p>
+            </div>
+            <button type="button" className="dealbook-action-btn" onClick={() => setView('matching')}>
+              Matchmaking Matrix <ArrowRight size={13} />
+            </button>
+          </div>
+
+          <div className="sponsor-mini-list">
+            {investors.slice(0, 4).map(inv => (
+              <div
+                key={inv.id}
+                className="sponsor-mini-item"
+                onClick={() => onOpenInvestor ? onOpenInvestor(inv) : setView('investors')}
+                title="Click to view investor quick drawer"
+              >
+                <div className="sponsor-mini-left">
+                  <Avatar initials={inv.name.slice(0, 2).toUpperCase()} color="lavender" />
+                  <div>
+                    <div className="sponsor-mini-name">{inv.name}</div>
+                    <div className="sponsor-mini-type">{inv.type} · {inv.geography}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="sponsor-mini-check">{inv.check}</span>
+                  <span className="attio-pill fit">✦ {inv.sector}</span>
+                  <ChevronRight size={15} color="#94a3b8" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Right: Upcoming Deal Team Tasks */}
+        <section className="dealbook-card">
+          <div className="dealbook-header">
+            <div>
+              <div className="dealbook-header-left">
+                <h3>Upcoming Deal Team Tasks</h3>
+                <span className="dealbook-badge">{tasks.filter(t => !t.done).length} open</span>
+              </div>
+              <p>Critical advisory deliverables, client checkpoints, and filings due this week</p>
+            </div>
+            <button type="button" className="dealbook-action-btn" onClick={() => setView('tasks')}>
+              Tasks Kanban Board <ArrowRight size={13} />
+            </button>
+          </div>
+
+          <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {tasks.filter(t => !t.done).slice(0, 4).map(task => (
+              <div
+                key={task.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #f1f5f9',
+                  background: '#f8fafc',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={task.done}
+                    onChange={() => toggleTask(task.id)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#198757' }}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 650, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {task.name}
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+                      {task.company} · {task.kind}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <span className="attio-pill" style={{ color: task.due === 'Today' ? '#dc2626' : '#64748b', fontWeight: 700 }}>
+                    <CalendarDays size={11} /> {task.due}
+                  </span>
+                  <Avatar initials={task.owner ? task.owner.split(' ').map(n=>n[0]).join('') : 'MC'} size="xs" color="mint" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
-  </div>;
+  );
 }
 
-function SellerPipeline({ sellers, allSellers, searchText, setSearchText, stageFilter, setStageFilter, sectorFilter, setSectorFilter, onOpenSeller, setModal }) {
-  const stages = ['All sellers','New','Qualified','Nurture','Preparing','In Market'];
-  return <div className="view-stack">
-    <div className="stats-strip">
-      <div><span>Seller leads</span><strong>{allSellers.length}</strong></div>
-      <div><span>Need first review</span><strong>{allSellers.filter(s=>s.stage==='New').length}</strong></div>
-      <div><span>In preparation</span><strong>{allSellers.filter(s=>s.stage==='Preparing').length}</strong></div>
-      <div><span>In market</span><strong>{allSellers.filter(s=>s.stage==='In Market').length}</strong></div>
-    </div>
-    <section className="card full-card">
-      <div className="pipeline-toolbar">
-        <div className="segmented">{stages.map(stage=><button key={stage} className={stageFilter===stage?'selected':''} onClick={()=>setStageFilter(stage)}>{stage}<span>{stage==='All sellers'?allSellers.length:allSellers.filter(s=>s.stage===stage).length}</span></button>)}</div>
-        <div className="table-tools">
-          <div className="table-search"><Search size={15}/><input placeholder="Search sellers…" value={searchText} onChange={e=>setSearchText(e.target.value)}/></div>
+function SellerPipeline({ sellers, allSellers, searchText, setSearchText, stageFilter, setStageFilter, sectorFilter, setSectorFilter, onOpenSeller, setModal, onUpdateStage }) {
+  const [viewMode, setViewMode] = useState('board');
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverStage, setDragOverStage] = useState(null);
+  const [sortBy, setSortBy] = useState('fit');
+
+  const stages = [
+    { id: 'New', label: 'New Lead', dot: 'slate' },
+    { id: 'Qualified', label: 'Qualified', dot: 'blue' },
+    { id: 'Preparing', label: 'Preparing', dot: 'amber' },
+    { id: 'In Market', label: 'In Market', dot: 'emerald' },
+    { id: 'Nurture', label: 'Nurture', dot: 'purple' }
+  ];
+
+  const filtered = useMemo(() => {
+    let list = allSellers.filter(s => {
+      const q = searchText.toLowerCase();
+      const matchSearch = !q || [s.name, s.sector, s.source, s.owner, s.summary, s.location].join(' ').toLowerCase().includes(q);
+      const matchSector = sectorFilter === 'All sectors' || s.sector === sectorFilter;
+      const matchStage = viewMode === 'board' ? true : (stageFilter === 'All sellers' || s.stage === stageFilter);
+      return matchSearch && matchSector && matchStage;
+    });
+
+    if (sortBy === 'fit') {
+      list = [...list].sort((a, b) => (b.fit || 0) - (a.fit || 0));
+    } else if (sortBy === 'revenue') {
+      list = [...list].sort((a, b) => parseRevenueValue(b.revenue) - parseRevenueValue(a.revenue));
+    } else if (sortBy === 'name') {
+      list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return list;
+  }, [allSellers, searchText, sectorFilter, stageFilter, sortBy, viewMode]);
+
+  const handleDragStart = (e, sellerId) => {
+    e.dataTransfer.setData('text/plain', sellerId);
+    setDraggedId(sellerId);
+  };
+
+  const handleDragOver = (e, stageId) => {
+    e.preventDefault();
+    if (dragOverStage !== stageId) setDragOverStage(stageId);
+  };
+
+  const handleDragLeave = (e, stageId) => {
+    if (dragOverStage === stageId) setDragOverStage(null);
+  };
+
+  const handleDrop = (e, stageId) => {
+    e.preventDefault();
+    setDragOverStage(null);
+    const sellerId = e.dataTransfer.getData('text/plain') || draggedId;
+    if (sellerId && onUpdateStage) {
+      onUpdateStage(sellerId, stageId);
+    }
+    setDraggedId(null);
+  };
+
+  const handleShiftStage = (e, seller, direction) => {
+    e.stopPropagation();
+    const stageIds = stages.map(s => s.id);
+    const curIdx = stageIds.indexOf(seller.stage);
+    if (curIdx === -1) return;
+    const nextIdx = direction === 'next' ? Math.min(stageIds.length - 1, curIdx + 1) : Math.max(0, curIdx - 1);
+    if (nextIdx !== curIdx && onUpdateStage) {
+      onUpdateStage(seller.id, stageIds[nextIdx]);
+    }
+  };
+
+  return (
+    <div className="view-stack">
+      {/* Attio View Controls Toolbar */}
+      <div className="attio-view-bar">
+        <div className="attio-view-bar-left">
+          <div className="attio-view-title">
+            <Building2 size={16} />
+            <span>Seller Pipeline</span>
+            <span className="attio-view-count-badge">{filtered.length} companies</span>
+          </div>
+
+          <div className="attio-view-switcher">
+            <button
+              type="button"
+              className={`attio-view-btn ${viewMode === 'board' ? 'active' : ''}`}
+              onClick={() => setViewMode('board')}
+            >
+              <Kanban size={13} />
+              <span>Board</span>
+            </button>
+            <button
+              type="button"
+              className={`attio-view-btn ${viewMode === 'table' ? 'active' : ''}`}
+              onClick={() => setViewMode('table')}
+            >
+              <List size={13} />
+              <span>Table</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="attio-view-bar-right">
+          <div className="attio-search-box">
+            <Search size={14} />
+            <input
+              placeholder="Search companies, owners, sectors..."
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+            />
+            <kbd>/</kbd>
+          </div>
+
           <CustomSelect
             value={sectorFilter}
             onChange={setSectorFilter}
-            options={['All sectors', ...new Set(allSellers.map(s=>s.sector))]}
+            options={['All sectors', ...new Set(allSellers.map(s => s.sector))]}
             placeholder="All sectors"
           />
-          <button className="square-button"><SlidersHorizontal size={16}/></button>
-          <button className="button button-primary button-small" onClick={()=>setModal({type:'seller'})}><Plus size={15}/> Add lead</button>
+
+          <CustomSelect
+            value={sortBy}
+            onChange={setSortBy}
+            options={[
+              { value: 'fit', label: 'Sort: Suggested Fit' },
+              { value: 'revenue', label: 'Sort: Deal Revenue' },
+              { value: 'name', label: 'Sort: Company Name' }
+            ]}
+          />
+
+          <button
+            type="button"
+            className="button button-primary button-small"
+            onClick={() => setModal({ type: 'seller' })}
+          >
+            <Plus size={15} /> Add Deal
+          </button>
         </div>
       </div>
-      {sellers.length ? <div className="table-wrap"><table className="data-table"><thead><tr><th>Company</th><th>Sector</th><th>Revenue</th><th>Stage</th><th>Fit</th><th>Next step</th><th/></tr></thead><tbody>{sellers.map(s=><TableRow key={s.id} seller={s} onClick={()=>onOpenSeller(s)}/>)}</tbody></table></div> : <EmptyState title="No sellers found" message="Try another stage, sector, or search term." />}
-      <div className="table-bottom"><span>Showing {sellers.length} records</span><div className="pagination"><button disabled>Previous</button><button className="page-number">1</button><button>Next</button></div></div>
-    </section>
-  </div>;
+
+      {viewMode === 'board' ? (
+        <div className="attio-kanban-board">
+          {stages.map(st => {
+            const columnSellers = filtered.filter(s => s.stage === st.id);
+            const totalVol = sumVolume(columnSellers);
+            const isOver = dragOverStage === st.id;
+
+            return (
+              <div
+                key={st.id}
+                className={`attio-kanban-column ${isOver ? 'drag-over' : ''}`}
+                onDragOver={e => handleDragOver(e, st.id)}
+                onDragLeave={e => handleDragLeave(e, st.id)}
+                onDrop={e => handleDrop(e, st.id)}
+              >
+                <div className="attio-column-header">
+                  <div className="attio-column-title-wrap">
+                    <span className={`attio-stage-dot ${st.dot}`} />
+                    <span className="attio-column-name">{st.label}</span>
+                    <span className="attio-column-count">{columnSellers.length}</span>
+                  </div>
+                  <div className="attio-column-actions">
+                    <span className="attio-column-volume">{totalVol}</span>
+                    <button
+                      type="button"
+                      className="attio-column-add-btn"
+                      title={`Add deal to ${st.label}`}
+                      onClick={() => setModal({ type: 'seller' })}
+                    >
+                      <Plus size={13} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="attio-cards-list">
+                  {columnSellers.map(seller => {
+                    const stageIds = stages.map(s => s.id);
+                    const sIdx = stageIds.indexOf(seller.stage);
+                    const canMoveLeft = sIdx > 0;
+                    const canMoveRight = sIdx < stageIds.length - 1;
+
+                    return (
+                      <div
+                        key={seller.id}
+                        className={`attio-card ${draggedId === seller.id ? 'dragging' : ''}`}
+                        draggable={true}
+                        onDragStart={e => handleDragStart(e, seller.id)}
+                        onClick={() => onOpenSeller(seller)}
+                      >
+                        <div className="attio-card-header">
+                          <div className="attio-card-title-group">
+                            <CompanyLogo name={seller.name} initials={seller.initials} size="sm" />
+                            <div className="attio-card-title">{seller.name}</div>
+                          </div>
+                          <div className="attio-card-shift-actions" onClick={e => e.stopPropagation()}>
+                            {canMoveLeft && (
+                              <button
+                                type="button"
+                                className="attio-card-shift-btn"
+                                title="Move back one stage"
+                                onClick={e => handleShiftStage(e, seller, 'prev')}
+                              >
+                                <ArrowLeft size={11} />
+                              </button>
+                            )}
+                            {canMoveRight && (
+                              <button
+                                type="button"
+                                className="attio-card-shift-btn"
+                                title="Advance to next stage"
+                                onClick={e => handleShiftStage(e, seller, 'next')}
+                              >
+                                <ArrowRight size={11} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {seller.summary && <p className="attio-card-desc">{seller.summary}</p>}
+
+                        <div className="attio-card-pills">
+                          <span className="attio-pill attio-pill-rev">
+                            <CircleDollarSign size={11} />
+                            {seller.revenue}
+                          </span>
+                          <span className="attio-pill attio-pill-sector">
+                            {seller.sector}
+                          </span>
+                          <span className="attio-pill attio-pill-fit">
+                            <Sparkles size={11} />
+                            {seller.fit}% Fit
+                          </span>
+                        </div>
+
+                        {seller.next && (
+                          <div className="attio-card-next">
+                            <Clock3 size={11} />
+                            <span>{seller.next}</span>
+                          </div>
+                        )}
+
+                        <div className="attio-card-footer">
+                          <div className="attio-card-owner">
+                            <Avatar initials={seller.owner.split(' ').map(x => x[0]).join('').slice(0, 2)} color="mint" size="xs" />
+                            <span>{seller.owner}</span>
+                          </div>
+                          <span>{seller.updated}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {columnSellers.length === 0 && (
+                    <div style={{ padding: '24px 12px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                      No deals in {st.label}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="attio-column-bottom-add"
+                  onClick={() => setModal({ type: 'seller' })}
+                >
+                  <Plus size={13} /> New deal
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <section className="card full-card">
+          <div className="pipeline-toolbar">
+            <div className="segmented">
+              {['All sellers', ...stages.map(s => s.id)].map(stage => (
+                <button
+                  key={stage}
+                  className={stageFilter === stage ? 'selected' : ''}
+                  onClick={() => setStageFilter(stage)}
+                >
+                  {stage}
+                  <span>{stage === 'All sellers' ? allSellers.length : allSellers.filter(s => s.stage === stage).length}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          {filtered.length ? (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th>Sector</th>
+                    <th>Revenue</th>
+                    <th>Stage</th>
+                    <th>Fit</th>
+                    <th>Next step</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(s => (
+                    <TableRow key={s.id} seller={s} onClick={() => onOpenSeller(s)} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState title="No sellers found" message="Try another stage, sector, or search term." />
+          )}
+          <div className="table-bottom">
+            <span>Showing {filtered.length} records</span>
+            <div className="pagination">
+              <button disabled>Previous</button>
+              <button className="page-number">1</button>
+              <button>Next</button>
+            </div>
+          </div>
+        </section>
+      )}
+    </div>
+  );
 }
 
-function InvestorNetwork({ investors, sellers, searchText, setSearchText, onOpenInvestor, setModal }) {
+function InvestorNetwork({ investors, sellers, searchText, setSearchText, onOpenInvestor, setModal, onUpdateStatus }) {
+  const [viewMode, setViewMode] = useState('board');
   const [filter, setFilter] = useState('All');
-  const matches = investors.filter(i => (filter==='All'||i.status===filter) && (!searchText || [i.name,i.type,...i.sectors].join(' ').toLowerCase().includes(searchText.toLowerCase())));
+  const [draggedInvId, setDraggedInvId] = useState(null);
+  const [dragOverCol, setDragOverCol] = useState(null);
+
+  const statusCols = [
+    { id: 'Active', label: 'Active', dot: 'emerald' },
+    { id: 'Warm', label: 'Warm', dot: 'amber' },
+    { id: 'Nurture', label: 'Nurture', dot: 'blue' },
+    { id: 'New', label: 'New', dot: 'slate' }
+  ];
+
+  const matches = useMemo(() => {
+    return investors.filter(i => {
+      const matchFilter = viewMode === 'board' ? true : (filter === 'All' || i.status === filter);
+      const matchSearch = !searchText || [i.name, i.type, ...(i.sectors || [])].join(' ').toLowerCase().includes(searchText.toLowerCase());
+      return matchFilter && matchSearch;
+    });
+  }, [investors, filter, searchText, viewMode]);
+
+  const handleDragStart = (e, invId) => {
+    e.dataTransfer.setData('text/plain', invId);
+    setDraggedInvId(invId);
+  };
+
+  const handleDragOver = (e, colId) => {
+    e.preventDefault();
+    if (dragOverCol !== colId) setDragOverCol(colId);
+  };
+
+  const handleDragLeave = (e, colId) => {
+    if (dragOverCol === colId) setDragOverCol(null);
+  };
+
+  const handleDrop = (e, colId) => {
+    e.preventDefault();
+    setDragOverCol(null);
+    const invId = e.dataTransfer.getData('text/plain') || draggedInvId;
+    if (invId && onUpdateStatus) {
+      onUpdateStatus(invId, colId);
+    }
+    setDraggedInvId(null);
+  };
+
   return <div className="view-stack">
-    <div className="stats-strip investor-strip">
-      <div><span>Investor profiles</span><strong>{investors.length}</strong></div>
-      <div><span>Active relationships</span><strong>{investors.filter(i=>i.status==='Active').length}</strong></div>
-      <div><span>Warm connections</span><strong>{investors.filter(i=>i.status==='Warm').length}</strong></div>
-      <div><span>Need review</span><strong>{investors.filter(i=>i.status==='Nurture'||i.status==='New').length}</strong></div>
-    </div>
-    <div className="card full-card">
-      <div className="network-toolbar">
-        <div className="segmented">{['All','Active','Warm','Nurture'].map(s=><button key={s} className={filter===s?'selected':''} onClick={()=>setFilter(s)}>{s}</button>)}</div>
-        <div className="table-tools">
-          <div className="table-search"><Search size={15}/><input placeholder="Search investors or sectors…" value={searchText} onChange={e=>setSearchText(e.target.value)}/></div>
-          <button className="square-button"><Filter size={16}/></button>
-          <button className="button button-primary button-small" onClick={()=>setModal({type:'investor'})}><Plus size={15}/> Add investor</button>
+    {/* Attio View Controls Toolbar */}
+    <div className="attio-view-bar">
+      <div className="attio-view-bar-left">
+        <div className="attio-view-title">
+          <UsersRound size={16} />
+          <span>Investor Network</span>
+          <span className="attio-view-count-badge">{matches.length} profiles</span>
+        </div>
+
+        <div className="attio-view-switcher">
+          <button
+            type="button"
+            className={`attio-view-btn ${viewMode === 'board' ? 'active' : ''}`}
+            onClick={() => setViewMode('board')}
+          >
+            <Kanban size={13} />
+            <span>Board</span>
+          </button>
+          <button
+            type="button"
+            className={`attio-view-btn ${viewMode === 'directory' ? 'active' : ''}`}
+            onClick={() => setViewMode('directory')}
+          >
+            <LayoutGrid size={13} />
+            <span>Directory</span>
+          </button>
         </div>
       </div>
-      <div className="investor-grid">
-        {matches.map(investor=><InvestorCard key={investor.id} investor={investor} onClick={()=>onOpenInvestor(investor)} />)}
+
+      <div className="attio-view-bar-right">
+        <div className="attio-search-box">
+          <Search size={14} />
+          <input
+            placeholder="Search investors or sectors…"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+          />
+          <kbd>/</kbd>
+        </div>
+
+        <button
+          type="button"
+          className="button button-primary button-small"
+          onClick={() => setModal({ type: 'investor' })}
+        >
+          <Plus size={15} /> Add Investor
+        </button>
       </div>
-      {!matches.length && <EmptyState title="No investors found" message="Try another search or status."/>}
-      <div className="table-bottom"><span>{matches.length} shown · {investors.length} profiles</span><span className="text-muted">Verified capital providers.</span></div>
     </div>
+
+    {viewMode === 'board' ? (
+      <div className="attio-kanban-board">
+        {statusCols.map(col => {
+          const colInvs = matches.filter(i => i.status === col.id);
+          const isOver = dragOverCol === col.id;
+
+          return (
+            <div
+              key={col.id}
+              className={`attio-kanban-column ${isOver ? 'drag-over' : ''}`}
+              onDragOver={e => handleDragOver(e, col.id)}
+              onDragLeave={e => handleDragLeave(e, col.id)}
+              onDrop={e => handleDrop(e, col.id)}
+            >
+              <div className="attio-column-header">
+                <div className="attio-column-title-wrap">
+                  <span className={`attio-stage-dot ${col.dot}`} />
+                  <span className="attio-column-name">{col.label}</span>
+                  <span className="attio-column-count">{colInvs.length}</span>
+                </div>
+                <button
+                  type="button"
+                  className="attio-column-add-btn"
+                  title={`Add investor to ${col.label}`}
+                  onClick={() => setModal({ type: 'investor' })}
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
+
+              <div className="attio-cards-list">
+                {colInvs.map(investor => {
+                  return (
+                    <div
+                      key={investor.id}
+                      className={`attio-card ${draggedInvId === investor.id ? 'dragging' : ''}`}
+                      draggable={true}
+                      onDragStart={e => handleDragStart(e, investor.id)}
+                      onClick={() => onOpenInvestor(investor)}
+                    >
+                      <div className="attio-card-header">
+                        <div className="attio-card-title-group">
+                          <CompanyLogo name={investor.name} initials={investor.initials} size="sm" />
+                          <div className="attio-card-title">{investor.name}</div>
+                        </div>
+                      </div>
+
+                      {investor.description && <p className="attio-card-desc">{investor.description}</p>}
+
+                      <div className="attio-card-pills">
+                        <span className="attio-pill attio-pill-rev">
+                          <CircleDollarSign size={11} /> {investor.check}
+                        </span>
+                        <span className="attio-pill">
+                          {investor.type}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 2 }}>
+                        {(investor.sectors || []).slice(0, 2).map(s => (
+                          <span key={s} className="soft-tag" style={{ fontSize: '10.5px', padding: '2px 6px' }}>{s}</span>
+                        ))}
+                      </div>
+
+                      <div className="attio-card-footer">
+                        <span>{investor.geography}</span>
+                        <span>{investor.lastTouch}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {colInvs.length === 0 && (
+                  <div style={{ padding: '24px 12px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                    No investors in {col.label}
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="attio-column-bottom-add"
+                onClick={() => setModal({ type: 'investor' })}
+              >
+                <Plus size={13} /> Add investor
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <div className="card full-card">
+        <div className="network-toolbar">
+          <div className="segmented">{['All','Active','Warm','Nurture'].map(s=><button key={s} className={filter===s?'selected':''} onClick={()=>setFilter(s)}>{s}</button>)}</div>
+        </div>
+        <div className="investor-grid">
+          {matches.map(investor=><InvestorCard key={investor.id} investor={investor} onClick={()=>onOpenInvestor(investor)} />)}
+        </div>
+        {!matches.length && <EmptyState title="No investors found" message="Try another search or status."/>}
+        <div className="table-bottom"><span>{matches.length} shown · {investors.length} profiles</span><span className="text-muted">Verified capital providers.</span></div>
+      </div>
+    )}
   </div>;
 }
 
@@ -3453,21 +4606,30 @@ function DealMilestonesModal({ deal, onClose, onToggleMilestone, onAddMilestone,
    ONGOING DEALS VIEW (ACTIVE M&A TRANSACTIONS)
    ========================================================================== */
 
-function OngoingDealsView({ deals, setOngoingDeals, sellers, investors, onAdvanceStage, onCloseDeal, onOpenInitiate, onViewAfterClose, setToast }) {
+function OngoingDealsView({ deals, setOngoingDeals, sellers, investors, onAdvanceStage, onCloseDeal, onOpenInitiate, onViewAfterClose, setToast, onUpdateStage }) {
+  const [viewMode, setViewMode] = useState('board');
   const [selectedStage, setSelectedStage] = useState('All');
   const [dealSearch, setDealSearch] = useState('');
   const [inspectMilestonesDeal, setInspectMilestonesDeal] = useState(null);
+  const [draggedDealId, setDraggedDealId] = useState(null);
+  const [dragOverStage, setDragOverStage] = useState(null);
 
-  const stages = ['All', 'Outreach & NDA', 'IOI Submitted', 'LOI & Exclusivity', 'Confirmatory DD', 'Closing'];
+  const stages = [
+    { id: 'Outreach & NDA', label: 'Outreach & NDA', dot: 'slate' },
+    { id: 'IOI Submitted', label: 'IOI Submitted', dot: 'blue' },
+    { id: 'LOI & Exclusivity', label: 'LOI & Exclusivity', dot: 'purple' },
+    { id: 'Confirmatory DD', label: 'Confirmatory DD', dot: 'amber' },
+    { id: 'Closing', label: 'Closing', dot: 'emerald' }
+  ];
 
   const filtered = useMemo(() => deals.filter(deal => {
     const q = dealSearch.toLowerCase();
     const matchesSearch = !q || [
       deal.title, deal.sellerName, deal.investorName, deal.sellerSector, deal.leadBanker, deal.notes
     ].join(' ').toLowerCase().includes(q);
-    const matchesStage = selectedStage === 'All' || deal.stage === selectedStage;
+    const matchesStage = viewMode === 'board' ? true : (selectedStage === 'All' || deal.stage === selectedStage);
     return matchesSearch && matchesStage;
-  }), [deals, dealSearch, selectedStage]);
+  }), [deals, dealSearch, selectedStage, viewMode]);
 
   const handleToggleMilestone = (dealId, milestoneIndex) => {
     setOngoingDeals(prev => prev.map(d => {
@@ -3486,199 +4648,377 @@ function OngoingDealsView({ deals, setOngoingDeals, sellers, investors, onAdvanc
     setToast('Checklist milestone added.');
   };
 
+  const handleDragStart = (e, dealId) => {
+    e.dataTransfer.setData('text/plain', dealId);
+    setDraggedDealId(dealId);
+  };
+
+  const handleDragOver = (e, stageId) => {
+    e.preventDefault();
+    if (dragOverStage !== stageId) setDragOverStage(stageId);
+  };
+
+  const handleDragLeave = (e, stageId) => {
+    if (dragOverStage === stageId) setDragOverStage(null);
+  };
+
+  const handleDrop = (e, stageId) => {
+    e.preventDefault();
+    setDragOverStage(null);
+    const dealId = e.dataTransfer.getData('text/plain') || draggedDealId;
+    if (dealId && onUpdateStage) {
+      onUpdateStage(dealId, stageId);
+    }
+    setDraggedDealId(null);
+  };
+
   return <div className="view-stack">
-    <div className="ongoing-header-hero">
-      <div className="ongoing-hero-copy">
-        <div className="control-label">M&A TRANSACTION PIPELINE</div>
-        <h2>Active Ongoing Transactions</h2>
-        <p>
-          Manage active deal execution, diligence milestones, and transaction progress. 
-          Sellers and investors can participate in concurrent live processes simultaneously.
-        </p>
-      </div>
-      <div className="ongoing-hero-actions">
-        <button className="button button-secondary" onClick={onViewAfterClose}>
-          <ClipboardCheck size={16}/> View Closed Deals ({seedClosedDeals.length})
-        </button>
-        <button className="button button-primary" onClick={onOpenInitiate}>
-          <Handshake size={16}/> + Initiate Deal
-        </button>
-      </div>
-    </div>
+    {/* Attio View Controls Toolbar */}
+    <div className="attio-view-bar">
+      <div className="attio-view-bar-left">
+        <div className="attio-view-title">
+          <Handshake size={16} />
+          <span>Ongoing Deals Pipeline</span>
+          <span className="attio-view-count-badge">{filtered.length} active transactions</span>
+        </div>
 
-    <div className="stats-strip">
-      <div><span>Total Ongoing Deals</span><strong>{deals.length}</strong></div>
-      <div><span>In Diligence / LOI</span><strong>{deals.filter(d => d.stage.includes('DD') || d.stage.includes('LOI')).length}</strong></div>
-      <div><span>Concurrent Entities</span><strong>{new Set([...deals.map(d=>d.sellerId), ...deals.map(d=>d.investorId)]).size} Active</strong></div>
-      <div><span>Est. Pipeline Value</span><strong>$195M+</strong></div>
-    </div>
-
-    <div className="table-controls-strip">
-      <div className="segmented-stages-scroll">
-        {stages.map(st => (
+        <div className="attio-view-switcher">
           <button
-            key={st}
-            className={selectedStage === st ? 'selected' : ''}
-            onClick={() => setSelectedStage(st)}
+            type="button"
+            className={`attio-view-btn ${viewMode === 'board' ? 'active' : ''}`}
+            onClick={() => setViewMode('board')}
           >
-            {st} {st !== 'All' && <small>({deals.filter(d=>d.stage===st).length})</small>}
+            <Kanban size={13} />
+            <span>Board</span>
           </button>
-        ))}
+          <button
+            type="button"
+            className={`attio-view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+            onClick={() => setViewMode('grid')}
+          >
+            <LayoutGrid size={13} />
+            <span>Grid</span>
+          </button>
+        </div>
       </div>
-      <div className="table-search">
-        <Search size={15}/>
-        <input
-          placeholder="Search ongoing deals, sellers, investors, bankers…"
-          value={dealSearch}
-          onChange={e=>setDealSearch(e.target.value)}
-        />
+
+      <div className="attio-view-bar-right">
+        <div className="attio-search-box">
+          <Search size={14} />
+          <input
+            placeholder="Search ongoing deals, bankers, sectors..."
+            value={dealSearch}
+            onChange={e => setDealSearch(e.target.value)}
+          />
+          <kbd>/</kbd>
+        </div>
+
+        <button
+          type="button"
+          className="button button-secondary button-small"
+          onClick={onViewAfterClose}
+        >
+          <ClipboardCheck size={14} /> Closed Deals ({seedClosedDeals.length})
+        </button>
+
+        <button
+          type="button"
+          className="button button-primary button-small"
+          onClick={onOpenInitiate}
+        >
+          <Plus size={15} /> Initiate Deal
+        </button>
       </div>
     </div>
 
-    {filtered.length ? (
-      <div className="ongoing-deals-grid">
-        {filtered.map(deal => {
-          const completedMilestones = (deal.milestones || []).filter(m => m.done).length;
-          const totalMilestones = (deal.milestones || []).length;
-          const pct = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
-          const stageFlow = ['Outreach & NDA', 'IOI Submitted', 'LOI & Exclusivity', 'Confirmatory DD', 'Closing'];
-          const stageShortNames = ['Outreach', 'IOI', 'LOI', 'DD', 'Closing'];
-          const currentStageIdx = stageFlow.indexOf(deal.stage);
-          const stagePct = Math.round(((currentStageIdx + 1) / stageFlow.length) * 100);
+    {viewMode === 'board' ? (
+      <div className="attio-kanban-board">
+        {stages.map(st => {
+          const columnDeals = filtered.filter(d => d.stage === st.id);
+          const totalVol = sumVolume(columnDeals, 'dealSize');
+          const isOver = dragOverStage === st.id;
 
-          return <div className="card ongoing-deal-card" key={deal.id}>
-            <div className="deal-card-top">
-              <div className="deal-card-meta-bar">
-                <div className="deal-card-meta-left">
-                  <span className="deal-sector-tag">{deal.sellerSector}</span>
-                  <span className="deal-meta-sep">•</span>
-                  <span className="deal-meta-item">Initiated {deal.initiatedAt}</span>
-                  <span className="deal-meta-sep">•</span>
-                  <span className="deal-meta-item">Lead: {deal.leadBanker}</span>
+          return (
+            <div
+              key={st.id}
+              className={`attio-kanban-column ${isOver ? 'drag-over' : ''}`}
+              onDragOver={e => handleDragOver(e, st.id)}
+              onDragLeave={e => handleDragLeave(e, st.id)}
+              onDrop={e => handleDrop(e, st.id)}
+            >
+              <div className="attio-column-header">
+                <div className="attio-column-title-wrap">
+                  <span className={`attio-stage-dot ${st.dot}`} />
+                  <span className="attio-column-name">{st.label}</span>
+                  <span className="attio-column-count">{columnDeals.length}</span>
                 </div>
-                <div className="deal-top-badges">
-                  <span className="deal-size-badge">{deal.dealSize}</span>
-                  <Badge tone={deal.stage === 'Closing' ? 'green' : deal.stage === 'Confirmatory DD' ? 'blue' : 'amber'}>
-                    {deal.stage}
-                  </Badge>
-                </div>
-              </div>
-              <h3 className="deal-card-title">{deal.title}</h3>
-            </div>
-
-            <div className="deal-parties-summary-grid">
-              <div className="party-summary-cell seller-cell">
-                <div className="party-cell-label">SELLER / TARGET</div>
-                <div className="party-cell-body">
-                  <CompanyLogo name={deal.sellerName} initials={deal.sellerName.slice(0,2).toUpperCase()} size="md" />
-                  <div>
-                    <strong>{deal.sellerName}</strong>
-                    <span>{deal.sellerSector} · {deal.sellerRevenue} Rev</span>
-                  </div>
+                <div className="attio-column-actions">
+                  <span className="attio-column-volume">{totalVol}</span>
+                  <button
+                    type="button"
+                    className="attio-column-add-btn"
+                    title={`Initiate deal in ${st.label}`}
+                    onClick={onOpenInitiate}
+                  >
+                    <Plus size={13} />
+                  </button>
                 </div>
               </div>
 
-              <div className="deal-parties-divider" title="Transaction Bridge">
-                <Handshake size={15} />
-              </div>
+              <div className="attio-cards-list">
+                {columnDeals.map(deal => {
+                  const completedMilestones = (deal.milestones || []).filter(m => m.done).length;
+                  const totalMilestones = (deal.milestones || []).length;
+                  const pct = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
 
-              <div className="party-summary-cell investor-cell">
-                <div className="party-cell-label">INVESTOR / BUYER</div>
-                <div className="party-cell-body">
-                  <CompanyLogo name={deal.investorName} initials={deal.investorName.slice(0,2).toUpperCase()} size="md" />
-                  <div>
-                    <strong>{deal.investorName}</strong>
-                    <span>{deal.investorType} · {deal.investorCheck}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="deal-stepper-wrap">
-              <div className="deal-stepper-head">
-                <div className="deal-stepper-current">
-                  <span>Stage:</span>
-                  <strong>{deal.stage}</strong>
-                  <span style={{ fontSize: 11, color: '#64748b' }}>({currentStageIdx + 1}/5)</span>
-                </div>
-                <span className="deal-stepper-pct">{stagePct}% of deal flow</span>
-              </div>
-              <div className="deal-stepper-segments">
-                {stageFlow.map((step, sIdx) => {
-                  const isDone = sIdx <= currentStageIdx;
-                  const isActive = sIdx === currentStageIdx;
                   return (
                     <div
-                      key={step}
-                      className={`stepper-segment ${isDone ? 'is-done' : ''} ${isActive ? 'is-active' : ''}`}
-                      title={`${sIdx + 1}. ${step}`}
+                      key={deal.id}
+                      className={`attio-card ${draggedDealId === deal.id ? 'dragging' : ''}`}
+                      draggable={true}
+                      onDragStart={e => handleDragStart(e, deal.id)}
+                      onClick={() => setInspectMilestonesDeal(deal)}
                     >
-                      <div className="stepper-segment-bar" />
-                      <span className="stepper-segment-label">{stageShortNames[sIdx]}</span>
+                      <div className="attio-card-header">
+                        <div className="attio-card-title-group">
+                          <CompanyLogo name={deal.sellerName} initials={deal.sellerName.slice(0, 2).toUpperCase()} size="sm" />
+                          <div className="attio-card-title">{deal.title || `${deal.sellerName} × ${deal.investorName}`}</div>
+                        </div>
+                      </div>
+
+                      <div className="attio-ongoing-parties">
+                        <span style={{ fontWeight: 650, color: '#0f172a', fontSize: '12px' }}>{deal.sellerName}</span>
+                        <span className="attio-ongoing-bridge">with</span>
+                        <span style={{ fontWeight: 650, color: '#059669', fontSize: '12px' }}>{deal.investorName}</span>
+                      </div>
+
+                      <div className="attio-card-pills">
+                        <span className="attio-pill attio-pill-rev">
+                          <CircleDollarSign size={11} />
+                          {deal.dealSize}
+                        </span>
+                        <span className="attio-pill attio-pill-sector">
+                          {deal.sellerSector}
+                        </span>
+                      </div>
+
+                      <div className="attio-milestone-bar">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748b' }}>
+                          <span>Diligence milestones</span>
+                          <strong style={{ color: '#0f172a' }}>{completedMilestones}/{totalMilestones}</strong>
+                        </div>
+                        <div className="attio-milestone-progress">
+                          <i style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="attio-card-footer">
+                        <div className="attio-card-owner">
+                          <Avatar initials={deal.leadBanker.split(' ').map(x => x[0]).join('').slice(0, 2)} color="mint" size="xs" />
+                          <span>{deal.leadBanker}</span>
+                        </div>
+                        <div className="attio-card-shift-actions" onClick={e => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className="button button-quiet button-micro"
+                            style={{ fontSize: '11px', padding: '2px 7px' }}
+                            onClick={() => setInspectMilestonesDeal(deal)}
+                          >
+                            Milestones
+                          </button>
+                          <button
+                            type="button"
+                            className="attio-card-shift-btn"
+                            title="Advance deal stage"
+                            onClick={() => onAdvanceStage(deal.id)}
+                          >
+                            <ArrowRight size={11} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
-              </div>
-            </div>
 
-            <div className="deal-milestones-preview">
-              <div className="milestones-preview-head">
-                <span>Diligence Checklist ({completedMilestones}/{totalMilestones} Complete)</span>
-                <strong>{pct}%</strong>
-              </div>
-              <ProgressBar value={pct} color={pct >= 80 ? 'green' : 'teal'} />
-              <div className="milestones-mini-tags">
-                {(deal.milestones || []).slice(0, 3).map((m, idx) => (
-                  <span key={idx} className={`milestone-tag ${m.done ? 'tag-done' : ''}`}>
-                    {m.done ? <Check size={11} /> : <Clock3 size={11} />} {m.name}
-                  </span>
-                ))}
-                {(deal.milestones || []).length > 3 && (
-                  <span className="milestone-tag-more">+{deal.milestones.length - 3} more</span>
+                {columnDeals.length === 0 && (
+                  <div style={{ padding: '24px 12px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                    No ongoing deals in {st.label}
+                  </div>
                 )}
               </div>
-            </div>
 
-            {deal.notes && (
-              <p className="deal-card-notes">
-                <strong>Mandate context:</strong> {deal.notes}
-              </p>
-            )}
-
-            <div className="deal-card-actions">
               <button
-                className="button button-secondary button-small deal-action-btn"
-                onClick={() => setInspectMilestonesDeal(deal)}
-                title="Diligence & Milestones"
+                type="button"
+                className="attio-column-bottom-add"
+                onClick={onOpenInitiate}
               >
-                <ClipboardList size={13}/>
-                <span>Diligence & Milestones</span>
-              </button>
-              <button
-                className="button button-quiet button-small deal-action-btn"
-                onClick={() => onAdvanceStage(deal.id)}
-                title="Advance to next stage in transaction flow"
-              >
-                <ArrowRight size={13}/>
-                <span>Advance Stage</span>
-              </button>
-              <button
-                className="button button-primary button-small deal-action-btn deal-action-close"
-                onClick={() => onCloseDeal(deal)}
-                title="Close transaction and move to After the Deal page"
-              >
-                <CheckCircle2 size={13}/>
-                <span>Close Deal</span>
+                <Plus size={13} /> Initiate deal
               </button>
             </div>
-          </div>;
+          );
         })}
       </div>
     ) : (
-      <EmptyState
-        title="No ongoing deals match criteria"
-        message="Initiate a deal from Matchmaking or click '+ Initiate Deal' above. Multiple concurrent deals per entity are supported."
-      />
+      <>
+        <div className="table-controls-strip">
+          <div className="segmented-stages-scroll">
+            {['All', ...stages.map(s => s.id)].map(st => (
+              <button
+                key={st}
+                className={selectedStage === st ? 'selected' : ''}
+                onClick={() => setSelectedStage(st)}
+              >
+                {st} {st !== 'All' && <small>({deals.filter(d => d.stage === st).length})</small>}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filtered.length ? (
+          <div className="ongoing-deals-grid">
+            {filtered.map(deal => {
+              const completedMilestones = (deal.milestones || []).filter(m => m.done).length;
+              const totalMilestones = (deal.milestones || []).length;
+              const pct = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
+              const stageFlow = ['Outreach & NDA', 'IOI Submitted', 'LOI & Exclusivity', 'Confirmatory DD', 'Closing'];
+              const currentStageIdx = stageFlow.indexOf(deal.stage);
+              const stagePct = Math.round(((currentStageIdx + 1) / stageFlow.length) * 100);
+
+              return <div className="card ongoing-deal-card" key={deal.id}>
+                <div className="deal-card-top">
+                  <div className="deal-card-meta-bar">
+                    <div className="deal-card-meta-left">
+                      <span className="deal-sector-tag">{deal.sellerSector}</span>
+                      <span className="deal-meta-sep">•</span>
+                      <span className="deal-meta-item">Initiated {deal.initiatedAt}</span>
+                      <span className="deal-meta-sep">•</span>
+                      <span className="deal-meta-item">Lead: {deal.leadBanker}</span>
+                    </div>
+                    <div className="deal-top-badges">
+                      <span className="deal-size-badge">{deal.dealSize}</span>
+                      <Badge tone={deal.stage === 'Closing' ? 'green' : deal.stage === 'Confirmatory DD' ? 'blue' : 'amber'}>
+                        {deal.stage}
+                      </Badge>
+                    </div>
+                  </div>
+                  <h3 className="deal-card-title">{deal.title}</h3>
+                </div>
+
+                <div className="deal-parties-summary-grid">
+                  <div className="party-summary-cell seller-cell">
+                    <div className="party-cell-label">SELLER / TARGET</div>
+                    <div className="party-cell-body">
+                      <CompanyLogo name={deal.sellerName} initials={deal.sellerName.slice(0,2).toUpperCase()} size="md" />
+                      <div>
+                        <strong>{deal.sellerName}</strong>
+                        <span>{deal.sellerSector} · {deal.sellerRevenue} Rev</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="deal-parties-divider" title="Transaction Bridge">
+                    <Handshake size={15} />
+                  </div>
+
+                  <div className="party-summary-cell investor-cell">
+                    <div className="party-cell-label">INVESTOR / BUYER</div>
+                    <div className="party-cell-body">
+                      <CompanyLogo name={deal.investorName} initials={deal.investorName.slice(0,2).toUpperCase()} size="md" />
+                      <div>
+                        <strong>{deal.investorName}</strong>
+                        <span>{deal.investorType} · {deal.investorCheck}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="deal-stepper-wrap">
+                  <div className="deal-stepper-head">
+                    <div className="deal-stepper-current">
+                      <span>Stage:</span>
+                      <strong>{deal.stage}</strong>
+                      <span style={{ fontSize: 11, color: '#64748b' }}>({currentStageIdx + 1}/5)</span>
+                    </div>
+                    <span className="deal-stepper-pct">{stagePct}% of deal flow</span>
+                  </div>
+                  <div className="deal-stepper-segments">
+                    {stageFlow.map((step, sIdx) => {
+                      const isDone = sIdx <= currentStageIdx;
+                      const isActive = sIdx === currentStageIdx;
+                      return (
+                        <div
+                          key={step}
+                          className={`stepper-segment ${isDone ? 'is-done' : ''} ${isActive ? 'is-active' : ''}`}
+                          title={`${sIdx + 1}. ${step}`}
+                        >
+                          <div className="stepper-segment-bar" />
+                          <span className="stepper-segment-label">{stageShortNames[sIdx]}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="deal-milestones-preview">
+                  <div className="milestones-preview-head">
+                    <span>Diligence Checklist ({completedMilestones}/{totalMilestones} Complete)</span>
+                    <strong>{pct}%</strong>
+                  </div>
+                  <ProgressBar value={pct} color={pct >= 80 ? 'green' : 'teal'} />
+                  <div className="milestones-mini-tags">
+                    {(deal.milestones || []).slice(0, 3).map((m, idx) => (
+                      <span key={idx} className={`milestone-tag ${m.done ? 'tag-done' : ''}`}>
+                        {m.done ? <Check size={11} /> : <Clock3 size={11} />} {m.name}
+                      </span>
+                    ))}
+                    {(deal.milestones || []).length > 3 && (
+                      <span className="milestone-tag-more">+{deal.milestones.length - 3} more</span>
+                    )}
+                  </div>
+                </div>
+
+                {deal.notes && (
+                  <p className="deal-card-notes">
+                    <strong>Mandate context:</strong> {deal.notes}
+                  </p>
+                )}
+
+                <div className="deal-card-actions">
+                  <button
+                    className="button button-secondary button-small deal-action-btn"
+                    onClick={() => setInspectMilestonesDeal(deal)}
+                    title="Diligence & Milestones"
+                  >
+                    <ClipboardList size={13}/>
+                    <span>Diligence & Milestones</span>
+                  </button>
+                  <button
+                    className="button button-quiet button-small deal-action-btn"
+                    onClick={() => onAdvanceStage(deal.id)}
+                    title="Advance to next stage in transaction flow"
+                  >
+                    <ArrowRight size={13}/>
+                    <span>Advance Stage</span>
+                  </button>
+                  <button
+                    className="button button-primary button-small deal-action-btn deal-action-close"
+                    onClick={() => onCloseDeal(deal)}
+                    title="Close transaction and move to After the Deal page"
+                  >
+                    <CheckCircle2 size={13}/>
+                    <span>Close Deal</span>
+                  </button>
+                </div>
+              </div>;
+            })}
+          </div>
+        ) : (
+          <EmptyState
+            title="No ongoing deals match criteria"
+            message="Initiate a deal from Matchmaking or click '+ Initiate Deal' above. Multiple concurrent deals per entity are supported."
+          />
+        )}
+      </>
     )}
 
     {inspectMilestonesDeal && (
@@ -4100,9 +5440,223 @@ function ScheduleFollowupModal({ deal, onClose, onSave }) {
 }
 
 
-function TasksView({ tasks, toggleTask, setModal }) {
-  const open=tasks.filter(t=>!t.done), done=tasks.filter(t=>t.done);
-  return <div className="view-stack"><div className="stats-strip"><div><span>Open tasks</span><strong>{open.length}</strong></div><div><span>Due today</span><strong>{open.filter(t=>t.due==='Today').length}</strong></div><div><span>Completed</span><strong>{done.length}</strong></div><div><span>Overdue</span><strong>{open.filter(t=>t.due==='Overdue').length}</strong></div></div><section className="card full-card"><div className="card-heading"><div><h3>Follow-ups and open tasks</h3><p>Assigned owners and due dates</p></div><button className="button button-primary button-small" onClick={()=>setModal({type:'task'})}><Plus size={15}/> Add task</button></div><div className="task-list full-task-list">{tasks.map(task=><TaskItem key={task.id} task={task} toggleTask={toggleTask}/>)}</div></section></div>;
+function TasksView({ tasks, toggleTask, setModal, onUpdateStatus }) {
+  const [viewMode, setViewMode] = useState('board');
+  const [taskSearch, setTaskSearch] = useState('');
+  const [draggedTaskId, setDraggedTaskId] = useState(null);
+  const [dragOverColumn, setDragOverColumn] = useState(null);
+
+  const columns = [
+    { id: 'To Do', label: 'To Do', dot: 'slate' },
+    { id: 'In Progress', label: 'In Progress', dot: 'blue' },
+    { id: 'Review', label: 'In Review', dot: 'amber' },
+    { id: 'Done', label: 'Done', dot: 'emerald' }
+  ];
+
+  const getTaskStatus = (t) => {
+    if (t.status) return t.status;
+    if (t.done) return 'Done';
+    if (t.due === 'Today' || t.due === 'Overdue') return 'In Progress';
+    return 'To Do';
+  };
+
+  const filteredTasks = useMemo(() => {
+    const q = taskSearch.toLowerCase();
+    return tasks.filter(t => !q || [t.title, t.company, t.owner, t.kind, t.due].join(' ').toLowerCase().includes(q));
+  }, [tasks, taskSearch]);
+
+  const handleDragStart = (e, taskId) => {
+    e.dataTransfer.setData('text/plain', taskId);
+    setDraggedTaskId(taskId);
+  };
+
+  const handleDragOver = (e, colId) => {
+    e.preventDefault();
+    if (dragOverColumn !== colId) setDragOverColumn(colId);
+  };
+
+  const handleDragLeave = (e, colId) => {
+    if (dragOverColumn === colId) setDragOverColumn(null);
+  };
+
+  const handleDrop = (e, colId) => {
+    e.preventDefault();
+    setDragOverColumn(null);
+    const taskId = e.dataTransfer.getData('text/plain') || draggedTaskId;
+    if (taskId && onUpdateStatus) {
+      onUpdateStatus(taskId, colId);
+    }
+    setDraggedTaskId(null);
+  };
+
+  return <div className="view-stack">
+    {/* Attio View Controls Toolbar */}
+    <div className="attio-view-bar">
+      <div className="attio-view-bar-left">
+        <div className="attio-view-title">
+          <ListChecks size={16} />
+          <span>Tasks & Follow-ups</span>
+          <span className="attio-view-count-badge">{filteredTasks.length} tasks</span>
+        </div>
+
+        <div className="attio-view-switcher">
+          <button
+            type="button"
+            className={`attio-view-btn ${viewMode === 'board' ? 'active' : ''}`}
+            onClick={() => setViewMode('board')}
+          >
+            <Kanban size={13} />
+            <span>Board</span>
+          </button>
+          <button
+            type="button"
+            className={`attio-view-btn ${viewMode === 'list' ? 'active' : ''}`}
+            onClick={() => setViewMode('list')}
+          >
+            <List size={13} />
+            <span>List</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="attio-view-bar-right">
+        <div className="attio-search-box">
+          <Search size={14} />
+          <input
+            placeholder="Search tasks, companies, owners..."
+            value={taskSearch}
+            onChange={e => setTaskSearch(e.target.value)}
+          />
+          <kbd>/</kbd>
+        </div>
+
+        <button
+          type="button"
+          className="button button-primary button-small"
+          onClick={() => setModal({ type: 'task' })}
+        >
+          <Plus size={15} /> Add Task
+        </button>
+      </div>
+    </div>
+
+    {viewMode === 'board' ? (
+      <div className="attio-kanban-board">
+        {columns.map(col => {
+          const colTasks = filteredTasks.filter(t => getTaskStatus(t) === col.id);
+          const isOver = dragOverColumn === col.id;
+
+          return (
+            <div
+              key={col.id}
+              className={`attio-kanban-column ${isOver ? 'drag-over' : ''}`}
+              onDragOver={e => handleDragOver(e, col.id)}
+              onDragLeave={e => handleDragLeave(e, col.id)}
+              onDrop={e => handleDrop(e, col.id)}
+            >
+              <div className="attio-column-header">
+                <div className="attio-column-title-wrap">
+                  <span className={`attio-stage-dot ${col.dot}`} />
+                  <span className="attio-column-name">{col.label}</span>
+                  <span className="attio-column-count">{colTasks.length}</span>
+                </div>
+                <button
+                  type="button"
+                  className="attio-column-add-btn"
+                  title={`Add task to ${col.label}`}
+                  onClick={() => setModal({ type: 'task' })}
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
+
+              <div className="attio-cards-list">
+                {colTasks.map(task => {
+                  const isDone = task.done || getTaskStatus(task) === 'Done';
+
+                  return (
+                    <div
+                      key={task.id}
+                      className={`attio-card attio-task-card ${draggedTaskId === task.id ? 'dragging' : ''}`}
+                      draggable={true}
+                      onDragStart={e => handleDragStart(e, task.id)}
+                    >
+                      <div className="attio-card-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                          <button
+                            type="button"
+                            className={`task-check ${isDone ? 'checked' : ''}`}
+                            onClick={() => toggleTask(task.id)}
+                            style={{ flexShrink: 0 }}
+                          >
+                            {isDone && <Check size={12} />}
+                          </button>
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: isDone ? '#94a3b8' : '#0f172a', textDecoration: isDone ? 'line-through' : 'none', lineHeight: 1.3 }}>
+                            {task.title}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="attio-card-pills">
+                        <span className="attio-pill">
+                          <Building2 size={11} />
+                          {task.company}
+                        </span>
+                        <span className="attio-pill attio-pill-sector">
+                          {task.kind}
+                        </span>
+                      </div>
+
+                      <div className="attio-card-footer">
+                        <div className="attio-card-owner">
+                          <Avatar initials={task.owner.split(' ').map(x => x[0]).join('').slice(0, 2)} color="mint" size="xs" />
+                          <span>{task.owner}</span>
+                        </div>
+                        <span style={{ fontSize: '11px', color: task.due === 'Today' ? '#d97706' : '#64748b', fontWeight: task.due === 'Today' ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <CalendarDays size={12} /> {task.due}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {colTasks.length === 0 && (
+                  <div style={{ padding: '24px 12px', textAlign: 'center', color: '#94a3b8', fontSize: '12px' }}>
+                    No tasks in {col.label}
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="attio-column-bottom-add"
+                onClick={() => setModal({ type: 'task' })}
+              >
+                <Plus size={13} /> Add task
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <section className="card full-card">
+        <div className="card-heading">
+          <div>
+            <h3>Follow-ups and open tasks</h3>
+            <p>Assigned owners and due dates</p>
+          </div>
+          <button className="button button-primary button-small" onClick={() => setModal({ type: 'task' })}>
+            <Plus size={15} /> Add task
+          </button>
+        </div>
+        <div className="task-list full-task-list">
+          {filteredTasks.map(task => (
+            <TaskItem key={task.id} task={task} toggleTask={toggleTask} />
+          ))}
+        </div>
+      </section>
+    )}
+  </div>;
 }
 
 function TaskItem({ task, toggleTask }) {

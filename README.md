@@ -15,7 +15,8 @@ For detailed AI-agent continuation context, product constraints, interaction beh
 
 ## Prototype areas
 
-- Overview dashboard and seller lead pipeline
+- **Attio-style Kanban Boards**: Interactive multi-column boards with drag-and-drop, financial column aggregate sums ($M), quick stage shifters, and segmented Board/Table switchers across Deals Pipeline, Ongoing Deals, Inbound Leads, Tasks, and Investor Network
+- Overview dashboard with executive stage funnel and live deal volume distribution
 - Click-through investor profiles with the highest-fit sample business; seller profiles with ranked investor matches
 - Expanded detail profiles with communications logs, document registers, and related investor/business matches
 - Seller readiness checklist and milestone timeline

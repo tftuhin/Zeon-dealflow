@@ -79,10 +79,11 @@ Historical workflow artifacts may exist elsewhere in `/home/user` from earlier w
 ## 6. Main navigation and current screens
 
 Navigation IDs and screens are defined near the top of `app/page.js`:
-- `overview` — sample metrics, stage chart, attention list, recent leads, upcoming tasks.
-- `leads` — inbound form submissions triage; research and populate fields, with one-click qualification converting to seller pipeline or investor network.
-- `sellers` — searchable/filterable seller pipeline; row selection opens seller quick drawer.
-- `investors` — filterable investor cards; any click on a card opens investor quick drawer.
+- `overview` — sample metrics, stage funnel bar, IB dealbook, live transaction war room, and partner sign-offs.
+- `ongoing` — multi-stage transaction board for active buyer-seller processes in market and exclusivity.
+- `leads` — inbound form submissions triage; research and populate fields, with one-click qualification.
+- `sellers` — searchable/filterable seller pipeline Kanban board and table view; opens seller quick drawer.
+- `investors` — filterable investor cards and relationship status board; opens investor quick drawer.
 - `matching` — select a seller, view suggested investor matches; matching rules are explanatory demo logic.
 - `readiness` — seller preparation checklist and milestone timeline; dates are examples/estimates.
 - `blind` — anonymous teaser, seller/banker outreach approvals, disclosure checks, and non-binding early terms; all actions simulated.
@@ -103,14 +104,31 @@ When a full detail page is active, the main content is `DetailProfilePage` rathe
 - `getInvestorMatchScore(investor, seller)` is a deliberately simple demo rule: starts at 55, adds 24 for sector overlap, 8 for broad geography compatibility, and 8 for selected Growth/Series B/Series C stage preferences; capped at 97.
 - `openInvestor(investor, preferredSellerId)` chooses the highest-scoring seller unless a preferred seller ID is passed. `openDetailProfile(type, record, preferredSellerId)` closes side drawers, preserves/sets seller context, then activates the full main-content profile page.
 
-## 8. UX and responsive design notes
+## 8. UX, Attio Aesthetic, and Kanban Design System
 
-- The shell uses an executive **light green / sage sidebar** (`#edf5f0`, `#d4e4db` border, `#123724` deep spruce typography, and `#198757` forest green active accents), sticky top bar, light workspace background, cards, badges, and clean teal accents. Brand is **Zeon DealBridge**, subtitle **Investment Banking Workspace**.
+- The application features an **Attio-inspired workspace interface** combined with the executive Zeon DealBridge palette (`#edf5f0` sage sidebar, `#123724` deep spruce typography, and `#198757` active forest green accents).
+- **Kanban Boards Across All Primary Views**:
+  - **Seller pipeline (`sellers`)**: Multi-column board (`New Lead`, `Qualified`, `Preparing`, `In Market`, `Nurture`) with aggregated financial deal volume ($M) per column header, interactive drag-and-drop reordering, quick 1-click stage advancement arrows (`←` `→`), and an Attio segmented view switcher (`[ ⊞ Board ]` / `[ ☰ Table ]`).
+  - **Ongoing Deals (`blind` / transactions)**: Multi-stage board (`Outreach & NDA`, `IOI Submitted`, `LOI & Exclusivity`, `Confirmatory DD`, `Closing`) featuring transaction progression bars, counterparty badges, diligence milestone counters, and segmented switchers (`[ ⊞ Board ]` / `[ ⊞ Grid ]`).
+  - **Inbound Leads (`leads`)**: Stage columns (`New Submission`, `Under Research`, `Qualified`, `Disqualified`) with drag-and-drop, inline quick-qualify actions (`+ Seller`, `+ Investor`, `Research`), and segmented view switchers.
+  - **Tasks & Follow-ups (`tasks`)**: Attio task board (`To Do`, `In Progress`, `In Review`, `Done`) with inline completion checkboxes, assignee badges, due-date pills, and segmented switchers (`[ ⊞ Board ]` / `[ ☰ List ]`).
+  - **Investor Network (`investors`)**: Relationship status board (`Active`, `Warm`, `Nurture`, `New`) with full-card hit targets (`investor-card-hit-area`) and directory/board toggles.
+- **Attio Visual Design Signature & IB Overview Architecture**:
+  - Crisp white card surfaces (`#ffffff`) on neutral canvas (`#f8fafc`).
+  - Distinctive property tags & status dots (Currency pills `$XXM`, sector pills, match fit percentage badges `✦ XX%`).
+  - **Investment Banking Overview Dashboard (`overview`)**: Reorganized for senior advisory and M&A executives:
+    1. *Stage Funnel Bar*: 5 stages (`New Lead`, `Qualified`, `Preparing`, `In Market`, `Nurture`) with aggregate enterprise volume ($M).
+    2. *Executive IB KPI Matrix*: Sell-Side Pipeline ($134M EV, +18% QoQ, $3.8M Lehman success fee run-rate), Live Deal Volume ($195M across 4 active transactions, largest $70M CedarPay), Buyer Universe (institutional sponsors, active NDAs, CIM distributions), Readiness & Velocity (average 42-day cycle, QoE audit status).
+    3. *Active Advisory Mandates (Dealbook)*: Comprehensive dealbook tracking mandate type (Majority Sale M&A, Growth Equity), financial profile ($ ARR & Target EV), advisory lead partners, top matched private equity sponsors, and critical next deliverables (QoE audits, teasers).
+    4. *Live Transactions & Diligence War Room*: Active counterparty pairings (e.g. Northstar Care × Cobalt Capital) with diligence milestone progression bars and stage status.
+    5. *Critical Path & Banker Gateways*: High-stakes partner sign-offs (Confidential outreach approvals, QoE drafts, inbound founder submissions, exclusivity clocks).
+    6. *Institutional Sponsor Universe & Deliverables Board*: Quick-view sponsor check sizes and weekly deal-team closing tasks with inline completion toggles.
+  - Column headers with color-coded status dot indicators, counter badges, aggregate deal volume sums, and column-specific `+` add action triggers.
+  - Ghost `+ New deal` / `+ Add item` buttons at the bottom of each column.
+  - Executive Stage Funnel component on Overview with stage deal volume metrics and distribution bars.
 - All dropdowns (`select`) use a custom, cross-browser branded design system with custom chevron indicators, hover/focus rings, and consistent sizing.
-- Seller pipeline table and terms table switch to card-like layouts on small screens; preserve responsive behavior and avoid introducing horizontal scrolling.
-- Investor cards are informational cards with an explicit absolute, card-sized transparent `<button>` hit area. This was added after card clicks were reported as nonfunctional. Keep it wired to `onOpenInvestor`; don’t replace it with a decorative-only CTA or a click handler that only sets a toast.
-- Quick drawers use a shared `.seller-drawer` style. The full profile page uses `.detail-profile-page`, not `.detail-profile-panel`/`.detail-profile-scrim`. Some legacy overlay CSS may remain; do not reintroduce it as the full-detail presentation.
-- Buttons and labels should clearly distinguish simulated actions from real actions. Keep accessible labels and keyboard support where practical.
+- Quick drawers use a shared `.seller-drawer` style. The full profile page uses `.detail-profile-page`, preserving the state-driven model inside `/`.
+- Buttons and labels distinguish simulated actions from real actions. Accessibility and keyboard shortcuts (`⌘ K`, `/`) are represented in the UI.
 
 ## 9. Known placeholders / limitations
 
